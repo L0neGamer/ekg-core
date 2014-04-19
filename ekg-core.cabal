@@ -25,7 +25,7 @@ library
     Data.Atomic
 
   build-depends:
-    base >= 4.5 && < 4.7,
+    base >= 4.5 && < 4.8,
     containers >= 0.5 && < 0.6,
     text < 1.2,
     unordered-containers < 0.3
