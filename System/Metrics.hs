@@ -31,7 +31,7 @@
 --
 -- This module also provides a way to register a number of predefined
 -- metrics that are useful in most applications. See e.g.
--- 'registerGcStats'.
+-- 'registerGcMetrics'.
 module System.Metrics
     (
       -- * Naming metrics
@@ -57,7 +57,7 @@ module System.Metrics
 
       -- ** Predefined metrics
       -- $predefined
-    , registerGcStats
+    , registerGcMetrics
 
       -- * Sampling metrics
       -- $sampling
@@ -103,7 +103,7 @@ import qualified System.Metrics.Label as Label
 -- disjoint components (e.g. libraries) to contribute to the set of
 -- metrics exposed by an application. Libraries who want to provide a
 -- set of metrics should defined a register method, in the style of
--- 'registerGcStats' that registers the metrics in a 'Store'. The
+-- 'registerGcMetrics' that registers the metrics in a 'Store'. The
 -- register function should document which metrics are registered and
 -- their types (i.e. counter, gauge, or label).
 
@@ -365,8 +365,8 @@ toMs s = round (s * 1000.0)
 -- @par_tot_bytes_copied@ divided by @par_max_bytes_copied@ approaches
 -- 1 for a maximally sequential run and approaches the number of
 -- threads (set by the RTS flag @-N@) for a maximally parallel run.
-registerGcStats :: Store -> IO ()
-registerGcStats store =
+registerGcMetrics :: Store -> IO ()
+registerGcMetrics store =
     registerGroup
     (M.fromList
      [ ("rts.gc.bytes_allocated"          , Counter . int . Stats.bytesAllocated)
