@@ -5,7 +5,7 @@ description:
   This library lets you defined and track system metrics.
 homepage:            https://github.com/tibbe/ekg-core
 bug-reports:         https://github.com/tibbe/ekg-core/issues
-license:             BSD2
+license:             BSD3
 license-file:        LICENSE
 author:              Johan Tibell
 maintainer:          johan.tibell@gmail.com
