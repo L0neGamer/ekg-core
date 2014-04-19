@@ -1,0 +1,40 @@
+name:                ekg-core
+version:             0.1.0.0
+synopsis:            Tracking of system metrics
+description:
+  This library lets you defined and track system metrics.
+homepage:            https://github.com/tibbe/ekg-core
+bug-reports:         https://github.com/tibbe/ekg-core/issues
+license:             BSD2
+license-file:        LICENSE
+author:              Johan Tibell
+maintainer:          johan.tibell@gmail.com
+category:            System
+build-type:          Simple
+extra-source-files:  CHANGES.md
+cabal-version:       >=1.10
+
+library
+  exposed-modules:
+    System.Metrics
+    System.Metrics.Counter
+    System.Metrics.Gauge
+    System.Metrics.Label
+
+  other-modules:
+    Data.Atomic
+
+  build-depends:
+    base >= 4.5 && < 4.7,
+    containers >= 0.5 && < 0.6,
+    text < 1.2,
+    unordered-containers < 0.3
+
+  default-language:    Haskell2010
+
+  ghc-options: -Wall
+  c-sources: cbits/atomic.c
+
+source-repository head
+  type:     git
+  location: https://github.com/tibbe/ekg-core.git
