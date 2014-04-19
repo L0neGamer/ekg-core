@@ -86,8 +86,8 @@ import qualified System.Metrics.Label as Label
 -- $naming
 -- Compound metric names should be separated using underscores.
 -- Example: @request_count@. Periods in the name imply namespacing.
--- Example: \"myapp.users\". Some consumers of metrics will use these
--- namespaces to group metrics in e.g. UIs.
+-- Example: @\"myapp.users\"@. Some consumers of metrics will use
+-- these namespaces to group metrics in e.g. UIs.
 --
 -- Libraries and frameworks that want to register their own metrics
 -- should prefix them with a namespace, to avoid collision with
