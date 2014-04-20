@@ -307,6 +307,17 @@ toMs s = round (s * 1000.0)
 -- | Register a number of metrics related to garbage collector
 -- behavior.
 --
+-- To enable GC statistics collection, either run your program with
+--
+-- > +RTS -T
+--
+-- or compile it with
+--
+-- > -with-rtsopts=-T
+--
+-- The runtime overhead of @-T@ is very small so it's safe to always
+-- leave it enabled.
+--
 -- Registerd counters:
 --
 -- [@rts.gc.bytes_allocated@] Total number of bytes allocated
