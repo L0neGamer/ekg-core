@@ -279,7 +279,7 @@ createCounter :: T.Text  -- ^ Counter name
               -> Store   -- ^ Metric store
               -> IO Counter
 createCounter name store = do
-    counter <- Counter.new
+    counter <- Counter.new 0
     registerCounter name (Counter.read counter) store
     return counter
 
@@ -288,7 +288,7 @@ createGauge :: T.Text  -- ^ Gauge name
             -> Store   -- ^ Metric store
             -> IO Gauge
 createGauge name store = do
-    gauge <- Gauge.new
+    gauge <- Gauge.new 0
     registerGauge name (Gauge.read gauge) store
     return gauge
 
@@ -297,7 +297,7 @@ createLabel :: T.Text  -- ^ Label name
             -> Store   -- ^ Metric store
             -> IO Label
 createLabel name store = do
-    label <- Label.new
+    label <- Label.new T.empty
     registerLabel name (Label.read label) store
     return label
 

@@ -20,8 +20,8 @@ import Prelude hiding (read)
 newtype Label = C { unC :: IORef T.Text }
 
 -- | Create a new empty label.
-new :: IO Label
-new = C `fmap` newIORef T.empty
+new :: T.Text -> IO Label
+new = fmap C . newIORef
 
 -- | Get the current value of the label.
 read :: Label -> IO T.Text
