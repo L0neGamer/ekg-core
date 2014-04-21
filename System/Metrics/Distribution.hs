@@ -7,8 +7,8 @@
 -- associated with the event -- the value you'd pass to 'add' -- could
 -- be the amount of time spent serving the request. All operations are
 -- thread safe.
-module System.Metrics.Event
-    ( Event
+module System.Metrics.Distribution
+    ( Distribution
     , new
     , add
     , addN
@@ -33,7 +33,7 @@ import qualified Prelude
 -- TODO: Make a faster implementation.
 
 -- | An metric for tracking events.
-newtype Event = Event { unEvent :: MVar State }
+newtype Distribution = Distribution { unDistribution :: MVar State }
 
 data State = State
     { sCount      :: !Int64
@@ -58,16 +58,16 @@ emptyState = State
     }
 
 -- | Create a new event tracker.
-new :: IO Event
-new = Event <$> newMVar emptyState
+new :: IO Distribution
+new = Distribution <$> newMVar emptyState
 
 -- | Add a new value for the event.
-add :: Event -> Double -> IO ()
+add :: Distribution -> Double -> IO ()
 add event val = addN event val 1
 
 -- | Add multiple equal values for the event.
-addN :: Event -> Double -> Int64 -> IO ()
-addN event val n = modifyMVar_ (unEvent event) $ \ State{..} ->
+addN :: Distribution -> Double -> Int64 -> IO ()
+addN event val n = modifyMVar_ (unDistribution event) $ \ State{..} ->
     -- Mean and variance are computed according to
     -- http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Online_algorithm
     let !count      = sCount + n
@@ -84,9 +84,9 @@ addN event val n = modifyMVar_ (unEvent event) $ \ State{..} ->
         }
 
 -- | Get the current statistical summary for the event being tracked.
-read :: Event -> IO Stats
+read :: Distribution -> IO Stats
 read event = do
-    State{..} <- readMVar $ unEvent event
+    State{..} <- readMVar $ unDistribution event
     return $! Stats
         { mean  = sMean
         , variance = if sCount == 0 then 0.0
@@ -97,7 +97,7 @@ read event = do
         , max   = sMax
         }
 
--- | Event statistics
+-- | Distribution statistics
 data Stats = Stats
     { mean     :: !Double  -- ^ Sample mean
     , variance :: !Double  -- ^ Biased sample variance

@@ -47,7 +47,7 @@ module System.Metrics
     , registerCounter
     , registerGauge
     , registerLabel
-    , registerEvent
+    , registerDistribution
     , registerGroup
 
       -- ** Convenience functions
@@ -55,7 +55,7 @@ module System.Metrics
     , createCounter
     , createGauge
     , createLabel
-    , createEvent
+    , createDistribution
 
       -- ** Predefined metrics
       -- $predefined
@@ -80,8 +80,8 @@ import Prelude hiding (read)
 
 import System.Metrics.Counter (Counter)
 import qualified System.Metrics.Counter as Counter
-import System.Metrics.Event (Event)
-import qualified System.Metrics.Event as Event
+import System.Metrics.Distribution (Distribution)
+import qualified System.Metrics.Distribution as Distribution
 import System.Metrics.Gauge (Gauge)
 import qualified System.Metrics.Gauge as Gauge
 import System.Metrics.Label (Label)
@@ -132,7 +132,7 @@ data GroupSampler = forall a. GroupSampler
 data MetricSampler = CounterS !(IO Int64)
                    | GaugeS !(IO Int64)
                    | LabelS !(IO T.Text)
-                   | EventS !(IO Event.Stats)
+                   | DistributionS !(IO Distribution.Stats)
 
 -- | Create a new, empty metric store.
 newStore :: IO Store
@@ -176,9 +176,9 @@ registerLabel :: T.Text     -- ^ Metric name
 registerLabel name sample store =
     register name (LabelS sample) store
 
-registerEvent :: T.Text -> IO Event.Stats -> Store -> IO ()
-registerEvent name sample store =
-    register name (EventS sample) store
+registerDistribution :: T.Text -> IO Distribution.Stats -> Store -> IO ()
+registerDistribution name sample store =
+    register name (DistributionS sample) store
 
 register :: T.Text
          -> MetricSampler
@@ -302,12 +302,12 @@ createLabel name store = do
     return label
 
 -- | Create and register an event tracker.
-createEvent :: T.Text  -- ^ Event name
-            -> Store   -- ^ Metric store
-            -> IO Event
-createEvent name store = do
-    event <- Event.new
-    registerEvent name (Event.read event) store
+createDistribution :: T.Text  -- ^ Distribution name
+                   -> Store   -- ^ Metric store
+                   -> IO Distribution
+createDistribution name store = do
+    event <- Distribution.new
+    registerDistribution name (Distribution.read event) store
     return event
 
 ------------------------------------------------------------------------
@@ -503,14 +503,14 @@ sampleGroups cbSamplers = concat `fmap` sequence (map runOne cbSamplers)
 data Value = Counter {-# UNPACK #-} !Int64
            | Gauge {-# UNPACK #-} !Int64
            | Label {-# UNPACK #-} !T.Text
-           | Event !Event.Stats
+           | Distribution !Distribution.Stats
            deriving Show
 
 sampleOne :: MetricSampler -> IO Value
-sampleOne (CounterS m) = Counter <$> m
-sampleOne (GaugeS m)   = Gauge <$> m
-sampleOne (LabelS m)   = Label <$> m
-sampleOne (EventS m)   = Event <$> m
+sampleOne (CounterS m)      = Counter <$> m
+sampleOne (GaugeS m)        = Gauge <$> m
+sampleOne (LabelS m)        = Label <$> m
+sampleOne (DistributionS m) = Distribution <$> m
 
 -- | Get a snapshot of all values.  Note that we're not guaranteed to
 -- see a consistent snapshot of the whole map.
