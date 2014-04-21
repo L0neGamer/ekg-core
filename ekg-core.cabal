@@ -35,7 +35,8 @@ library
   default-language:    Haskell2010
 
   ghc-options: -Wall
-  includes: cbits/distrib.h
+  includes: distrib.h
+  install-includes: distrib.h
   include-dirs: cbits
   c-sources: cbits/atomic.c cbits/distrib.c
 
