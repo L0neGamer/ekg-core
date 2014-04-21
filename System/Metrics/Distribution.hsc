@@ -103,20 +103,20 @@ new = do
 
 -- | Add a value to the distribution.
 add :: Distribution -> Double -> IO ()
-add event val = addN event val 1
+add distrib val = addN distrib val 1
 
 foreign import ccall unsafe "hs_distrib_add_n" cDistribAddN
     :: Ptr CDistrib -> Double -> Int64 -> IO ()
 
 -- | Add the same value to the distribution N times.
 addN :: Distribution -> Double -> Int64 -> IO ()
-addN event val n = withLock (distMutex event) $
-    withForeignPtr (distFp event) $ \ p -> cDistribAddN p val n
+addN distrib val n = withLock (distMutex distrib) $
+    withForeignPtr (distFp distrib) $ \ p -> cDistribAddN p val n
 
 -- | Get the current statistical summary for the event being tracked.
 read :: Distribution -> IO Stats
-read event = withLock (distMutex event) $ do
-    CDistrib{..} <- withForeignPtr (distFp event) peek
+read distrib = withLock (distMutex distrib) $ do
+    CDistrib{..} <- withForeignPtr (distFp distrib) peek
     return $! Stats
         { mean  = cMean
         , variance = if cCount == 0 then 0.0
