@@ -12,6 +12,7 @@ module System.Metrics.Counter
     ) where
 
 import qualified Data.Atomic as Atomic
+import Data.Int (Int64)
 import Prelude hiding (read)
 
 -- | A mutable, integer-valued counter.
@@ -22,7 +23,7 @@ new :: IO Counter
 new = C `fmap` Atomic.new 0
 
 -- | Get the current value of the counter.
-read :: Counter -> IO Int
+read :: Counter -> IO Int64
 read = Atomic.read . unC
 
 -- | Increase the counter by one.
@@ -30,5 +31,5 @@ inc :: Counter -> IO ()
 inc counter = add counter 1
 
 -- | Add the argument to the counter.
-add :: Counter -> Int -> IO ()
+add :: Counter -> Int64 -> IO ()
 add counter = Atomic.add (unC counter)

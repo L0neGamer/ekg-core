@@ -6,7 +6,7 @@ import System.Metrics
 main = do
     store <- newStore
     let metrics =
-            [ ("num_gcs", Counter . fromIntegral . numGcs)
-            , ("max_bytes_used", Gauge . fromIntegral . maxBytesUsed)
+            [ ("num_gcs", Counter . numGcs)
+            , ("max_bytes_used", Gauge . maxBytesUsed)
             ]
     registerGroup (M.fromList metrics) getGCStats store

@@ -125,8 +125,8 @@ data GroupSampler = forall a. GroupSampler
      }
 
 -- TODO: Rename this to Metric and Metric to SampledMetric.
-data MetricSampler = CounterS !(IO Int)
-                   | GaugeS !(IO Int)
+data MetricSampler = CounterS !(IO Int64)
+                   | GaugeS !(IO Int64)
                    | LabelS !(IO T.Text)
 
 -- | Create a new, empty metric store.
@@ -146,18 +146,18 @@ newStore = do
 
 -- | Register a non-negative, monotonically increasing, integer-valued
 -- metric. The provided action to read the value must be thread-safe.
-registerCounter :: T.Text  -- ^ Metric name
-                -> IO Int  -- ^ Action to read the current metric value
-                -> Store   -- ^ Metric store
+registerCounter :: T.Text    -- ^ Metric name
+                -> IO Int64  -- ^ Action to read the current metric value
+                -> Store     -- ^ Metric store
                 -> IO ()
 registerCounter name sample store =
     register name (CounterS sample) store
 
 -- | Register an integer-valued metric. The provided action to read
 -- the value must be thread-safe.
-registerGauge :: T.Text  -- ^ Metric name
-              -> IO Int  -- ^ Action to read the current metric value
-              -> Store   -- ^ Metric store
+registerGauge :: T.Text    -- ^ Metric name
+              -> IO Int64  -- ^ Action to read the current metric value
+              -> Store     -- ^ Metric store
               -> IO ()
 registerGauge name sample store =
     register name (GaugeS sample) store
@@ -231,8 +231,8 @@ alreadyInUseError name =
 -- > main = do
 -- >     store <- newStore
 -- >     let metrics =
--- >             [ ("num_gcs", Counter . fromIntegral . numGcs)
--- >             , ("max_bytes_used", Gauge . fromIntegral . maxBytesUsed)
+-- >             [ ("num_gcs", Counter . numGcs)
+-- >             , ("max_bytes_used", Gauge . maxBytesUsed)
 -- >             ]
 -- >     registerGroup (M.fromList metrics) getGCStats store
 registerGroup
@@ -301,7 +301,7 @@ createLabel name store = do
 -- function.
 
 -- | Convert seconds to milliseconds.
-toMs :: Double -> Int
+toMs :: Double -> Int64
 toMs s = round (s * 1000.0)
 
 -- | Register a number of metrics related to garbage collector
@@ -380,30 +380,28 @@ registerGcMetrics :: Store -> IO ()
 registerGcMetrics store =
     registerGroup
     (M.fromList
-     [ ("rts.gc.bytes_allocated"          , Counter . int . Stats.bytesAllocated)
-     , ("rts.gc.num_gcs"                  , Counter . int . Stats.numGcs)
-     , ("rts.gc.num_bytes_usage_samples"  , Counter . int . Stats.numByteUsageSamples)
-     , ("rts.gc.cumulative_bytes_used"    , Counter . int . Stats.cumulativeBytesUsed)
-     , ("rts.gc.bytes_copied"             , Counter . int . Stats.bytesCopied)
+     [ ("rts.gc.bytes_allocated"          , Counter . Stats.bytesAllocated)
+     , ("rts.gc.num_gcs"                  , Counter . Stats.numGcs)
+     , ("rts.gc.num_bytes_usage_samples"  , Counter . Stats.numByteUsageSamples)
+     , ("rts.gc.cumulative_bytes_used"    , Counter . Stats.cumulativeBytesUsed)
+     , ("rts.gc.bytes_copied"             , Counter . Stats.bytesCopied)
      , ("rts.gc.mutator_cpu_ms"           , Counter . toMs . Stats.mutatorCpuSeconds)
      , ("rts.gc.mutator_wall_ms"          , Counter . toMs . Stats.mutatorWallSeconds)
      , ("rts.gc.gc_cpu_ms"                , Counter . toMs . Stats.gcCpuSeconds)
      , ("rts.gc.gc_wall_ms"               , Counter . toMs . Stats.gcWallSeconds)
      , ("rts.gc.cpu_ms"                   , Counter . toMs . Stats.cpuSeconds)
      , ("rts.gc.wall_ms"                  , Counter . toMs . Stats.wallSeconds)
-     , ("rts.gc.max_bytes_used"           , Gauge . int . Stats.maxBytesUsed)
-     , ("rts.gc.current_bytes_used"       , Gauge . int . Stats.currentBytesUsed)
-     , ("rts.gc.current_bytes_slop"       , Gauge . int . Stats.currentBytesSlop)
-     , ("rts.gc.max_bytes_slop"           , Gauge . int . Stats.maxBytesSlop)
-     , ("rts.gc.peak_megabytes_allocated" , Gauge . int . Stats.peakMegabytesAllocated)
-     , ("rts.gc.par_tot_bytes_copied"     , Gauge . int . gcParTotBytesCopied)
-     , ("rts.gc.par_avg_bytes_copied"     , Gauge . int . gcParTotBytesCopied)
-     , ("rts.gc.par_max_bytes_copied"     , Gauge . int . Stats.parMaxBytesCopied)
+     , ("rts.gc.max_bytes_used"           , Gauge . Stats.maxBytesUsed)
+     , ("rts.gc.current_bytes_used"       , Gauge . Stats.currentBytesUsed)
+     , ("rts.gc.current_bytes_slop"       , Gauge . Stats.currentBytesSlop)
+     , ("rts.gc.max_bytes_slop"           , Gauge . Stats.maxBytesSlop)
+     , ("rts.gc.peak_megabytes_allocated" , Gauge . Stats.peakMegabytesAllocated)
+     , ("rts.gc.par_tot_bytes_copied"     , Gauge . gcParTotBytesCopied)
+     , ("rts.gc.par_avg_bytes_copied"     , Gauge . gcParTotBytesCopied)
+     , ("rts.gc.par_max_bytes_copied"     , Gauge . Stats.parMaxBytesCopied)
      ])
     getGcStats
     store
-  where
-    int = fromIntegral
 
 -- | Get GC statistics.
 getGcStats :: IO Stats.GCStats
@@ -484,8 +482,8 @@ sampleGroups cbSamplers = concat `fmap` sequence (map runOne cbSamplers)
         return $! map (\ (n, f) -> (n, f a)) (M.toList groupSamplerMetrics)
 
 -- | The value of a sampled metric.
-data Value = Counter {-# UNPACK #-} !Int
-           | Gauge {-# UNPACK #-} !Int
+data Value = Counter {-# UNPACK #-} !Int64
+           | Gauge {-# UNPACK #-} !Int64
            | Label {-# UNPACK #-} !T.Text
            deriving (Eq, Show)
 
