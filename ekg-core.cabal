@@ -18,6 +18,7 @@ library
   exposed-modules:
     System.Metrics
     System.Metrics.Counter
+    System.Metrics.Event
     System.Metrics.Gauge
     System.Metrics.Label
 
