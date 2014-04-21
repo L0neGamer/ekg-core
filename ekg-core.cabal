@@ -34,7 +34,9 @@ library
   default-language:    Haskell2010
 
   ghc-options: -Wall
-  c-sources: cbits/atomic.c
+  includes: cbits/distrib.h
+  include-dirs: cbits
+  c-sources: cbits/atomic.c cbits/distrib.c
 
 benchmark counter
   main-is: Counter.hs
