@@ -9,7 +9,7 @@ import System.Metrics.Counter
 
 main :: IO ()
 main = do
-    counter <- new
+    counter <- new 0
     locks <- replicateM n newEmptyMVar
     mapM_ (forkIO . work counter iters) locks
     mapM_ takeMVar locks
