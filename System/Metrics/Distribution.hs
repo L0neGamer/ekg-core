@@ -61,11 +61,11 @@ emptyState = State
 new :: IO Distribution
 new = Distribution <$> newMVar emptyState
 
--- | Add a new value for the event.
+-- | Add a value to the distribution.
 add :: Distribution -> Double -> IO ()
 add event val = addN event val 1
 
--- | Add multiple equal values for the event.
+-- | Add the same value to the distribution N times.
 addN :: Distribution -> Double -> Int64 -> IO ()
 addN event val n = modifyMVar_ (unDistribution event) $ \ State{..} ->
     -- Mean and variance are computed according to
