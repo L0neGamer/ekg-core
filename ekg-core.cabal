@@ -36,6 +36,15 @@ library
   ghc-options: -Wall
   c-sources: cbits/atomic.c
 
+benchmark counter
+  main-is: Counter.hs
+  type: exitcode-stdio-1.0
+  build-depends:
+    base,
+    ekg-core
+  default-language: Haskell2010
+  hs-source-dirs: benchmarks
+
 source-repository head
   type:     git
   location: https://github.com/tibbe/ekg-core.git
