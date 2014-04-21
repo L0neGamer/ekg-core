@@ -27,7 +27,6 @@ module System.Metrics.Distribution
     , max
     ) where
 
-import Control.Concurrent.MVar (MVar, newMVar, putMVar, takeMVar)
 import Data.Int (Int64)
 import Foreign.C.Types (CInt)
 import Foreign.ForeignPtr (ForeignPtr, mallocForeignPtr, withForeignPtr)
@@ -37,20 +36,22 @@ import Foreign.Storable (Storable(alignment, peek, poke, sizeOf), peekByteOff,
 import Prelude hiding (max, min, read, sum)
 import qualified Prelude
 
+import qualified Data.Mutex as Mutex
+
 -- TODO: Make a faster implementation.
 
 -- | An metric for tracking events.
 data Distribution = Distribution
     { distFp    :: !(ForeignPtr CDistrib)
-    , distMutex :: !(MVar ())
+    , distMutex :: !Mutex.Mutex
     }
 
 -- | Perform action with lock held. Not exception safe.
-withLock :: MVar () -> IO a -> IO a
-withLock lock m = do
-    takeMVar lock
+withMutex :: Mutex.Mutex -> IO a -> IO a
+withMutex lock m = do
+    Mutex.lock lock
     a <- m
-    putMVar lock ()
+    Mutex.unlock lock
     return a
 
 data CDistrib = CDistrib
@@ -95,7 +96,7 @@ new :: IO Distribution
 new = do
     fp <- mallocForeignPtr
     withForeignPtr fp $ \ p -> poke p $ CDistrib 0 0.0 0.0 0.0 0.0 0.0
-    mutex <- newMVar ()
+    mutex <- Mutex.new
     return $! Distribution
         { distFp    = fp
         , distMutex = mutex
@@ -110,12 +111,12 @@ foreign import ccall unsafe "hs_distrib_add_n" cDistribAddN
 
 -- | Add the same value to the distribution N times.
 addN :: Distribution -> Double -> Int64 -> IO ()
-addN distrib val n = withLock (distMutex distrib) $
+addN distrib val n = withMutex (distMutex distrib) $
     withForeignPtr (distFp distrib) $ \ p -> cDistribAddN p val n
 
 -- | Get the current statistical summary for the event being tracked.
 read :: Distribution -> IO Stats
-read distrib = withLock (distMutex distrib) $ do
+read distrib = withMutex (distMutex distrib) $ do
     CDistrib{..} <- withForeignPtr (distFp distrib) peek
     return $! Stats
         { mean  = cMean
