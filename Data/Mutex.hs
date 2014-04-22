@@ -5,15 +5,25 @@ module Data.Mutex
     , unlock
     ) where
 
-import Control.Concurrent.MVar (MVar, newMVar, putMVar, takeMVar)
+import Data.Int (Int64)
+import Foreign.ForeignPtr (ForeignPtr, mallocForeignPtr, withForeignPtr)
+import Foreign.Ptr (Ptr)
+import Foreign.Storable (poke)
 
-newtype Mutex = M { unMutex :: MVar () }
+newtype Mutex = M { unM :: ForeignPtr Int64 }
 
 new :: IO Mutex
-new = M `fmap` newMVar ()
+new = do
+    fp <- mallocForeignPtr
+    withForeignPtr fp $ \ p -> poke p 0
+    return $ M fp
 
 lock :: Mutex -> IO ()
-lock = takeMVar . unMutex
+lock m = withForeignPtr (unM m) cLock
+
+foreign import ccall unsafe "hs_lock" cLock :: Ptr Int64 -> IO ()
 
 unlock :: Mutex -> IO ()
-unlock m = putMVar (unMutex m) ()
+unlock m = withForeignPtr (unM m) cUnlock
+
+foreign import ccall unsafe "hs_unlock" cUnlock :: Ptr Int64 -> IO ()

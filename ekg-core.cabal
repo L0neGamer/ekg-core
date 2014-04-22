@@ -38,7 +38,7 @@ library
   includes: distrib.h
   install-includes: distrib.h
   include-dirs: cbits
-  c-sources: cbits/atomic.c cbits/distrib.c
+  c-sources: cbits/atomic.c cbits/distrib.c cbits/mutex.c
 
 benchmark counter
   main-is: Counter.hs

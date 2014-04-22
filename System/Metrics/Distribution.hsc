@@ -34,7 +34,6 @@ import Foreign.Ptr (Ptr)
 import Foreign.Storable (Storable(alignment, peek, poke, sizeOf), peekByteOff,
                          pokeByteOff)
 import Prelude hiding (max, min, read, sum)
-import qualified Prelude
 
 import qualified Data.Mutex as Mutex
 
@@ -117,7 +116,8 @@ addN distrib val n = withMutex (distMutex distrib) $
 -- | Get the current statistical summary for the event being tracked.
 read :: Distribution -> IO Stats
 read distrib = withMutex (distMutex distrib) $ do
-    CDistrib{..} <- withForeignPtr (distFp distrib) peek
+    CDistrib{..} <- withMutex (distMutex distrib) $
+                    withForeignPtr (distFp distrib) peek
     return $! Stats
         { mean  = cMean
         , variance = if cCount == 0 then 0.0
