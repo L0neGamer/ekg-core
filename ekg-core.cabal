@@ -25,8 +25,11 @@ library
   other-modules:
     Data.Atomic
     Data.Mutex
+    System.Metrics.ThreadId
 
   build-depends:
+    array < 0.6,
+    ghc-prim < 0.4,
     base >= 4.5 && < 4.8,
     containers >= 0.5 && < 0.6,
     text < 1.2,

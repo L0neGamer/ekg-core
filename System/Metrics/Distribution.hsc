@@ -27,6 +27,8 @@ module System.Metrics.Distribution
     , max
     ) where
 
+import Control.Monad (forM_, replicateM)
+import Data.Array (Array, (!), elems, listArray)
 import Data.Int (Int64)
 import Foreign.C.Types (CInt)
 import Foreign.ForeignPtr (ForeignPtr, mallocForeignPtr, withForeignPtr)
@@ -36,13 +38,14 @@ import Foreign.Storable (Storable(alignment, peek, poke, sizeOf), peekByteOff,
 import Prelude hiding (max, min, read, sum)
 
 import qualified Data.Mutex as Mutex
-
--- TODO: Make a faster implementation.
+import System.Metrics.ThreadId
 
 -- | An metric for tracking events.
-data Distribution = Distribution
-    { distFp    :: !(ForeignPtr CDistrib)
-    , distMutex :: !Mutex.Mutex
+newtype Distribution = Distribution { unD :: Array Int Stripe }
+
+data Stripe = Stripe
+    { stripeFp    :: !(ForeignPtr CDistrib)
+    , stripeMutex :: !Mutex.Mutex
     }
 
 -- | Perform action with lock held. Not exception safe.
@@ -90,16 +93,39 @@ instance Storable CDistrib where
         (#poke struct distrib, min) p cMin
         (#poke struct distrib, max) p cMax
 
--- | Create a new distribution.
-new :: IO Distribution
-new = do
+newCDistrib :: IO (ForeignPtr CDistrib)
+newCDistrib = do
     fp <- mallocForeignPtr
     withForeignPtr fp $ \ p -> poke p $ CDistrib 0 0.0 0.0 0.0 0.0 0.0
+    return fp
+
+newStripe :: IO Stripe
+newStripe = do
+    fp <- newCDistrib
     mutex <- Mutex.new
-    return $! Distribution
-        { distFp    = fp
-        , distMutex = mutex
+    return $! Stripe
+        { stripeFp    = fp
+        , stripeMutex = mutex
         }
+
+-- | Number of lock stripes. Should be greater or equal to the number
+-- of HECs.
+numStripes :: Int
+numStripes = 8
+
+-- | Get the stripe to use for this thread.
+myStripe :: Distribution -> IO Stripe
+myStripe distrib = do
+    tid <- myThreadId
+    return $! unD distrib ! (tid `mod` numStripes)
+
+------------------------------------------------------------------------
+-- Exposed API
+
+-- | Create a new distribution.
+new :: IO Distribution
+new = (Distribution . listArray (0, numStripes - 1)) `fmap`
+      replicateM numStripes newStripe
 
 -- | Add a value to the distribution.
 add :: Distribution -> Double -> IO ()
@@ -110,14 +136,24 @@ foreign import ccall unsafe "hs_distrib_add_n" cDistribAddN
 
 -- | Add the same value to the distribution N times.
 addN :: Distribution -> Double -> Int64 -> IO ()
-addN distrib val n = withMutex (distMutex distrib) $
-    withForeignPtr (distFp distrib) $ \ p -> cDistribAddN p val n
+addN distrib val n = do
+    stripe <- myStripe distrib
+    withForeignPtr (stripeFp stripe) $ \ p ->
+        withMutex (stripeMutex stripe) $ cDistribAddN p val n
+
+foreign import ccall unsafe "hs_distrib_combine" combine
+    :: Ptr CDistrib -> Ptr CDistrib -> IO ()
 
 -- | Get the current statistical summary for the event being tracked.
 read :: Distribution -> IO Stats
-read distrib = withMutex (distMutex distrib) $ do
-    CDistrib{..} <- withMutex (distMutex distrib) $
-                    withForeignPtr (distFp distrib) peek
+read distrib = do
+    result <- newCDistrib
+    CDistrib{..} <- withForeignPtr result $ \ resultp -> do
+        forM_ (elems $ unD distrib) $ \ stripe ->
+            withForeignPtr (stripeFp stripe) $ \ p ->
+            withMutex (stripeMutex stripe) $
+            combine p resultp
+        peek resultp
     return $! Stats
         { mean  = cMean
         , variance = if cCount == 0 then 0.0
