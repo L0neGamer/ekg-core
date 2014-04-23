@@ -116,7 +116,7 @@ numStripes = 8
 -- | Get the stripe to use for this thread.
 myStripe :: Distribution -> IO Stripe
 myStripe distrib = do
-    tid <- myThreadId
+    tid <- myCapability
     return $! unD distrib ! (tid `mod` numStripes)
 
 ------------------------------------------------------------------------

@@ -2,18 +2,12 @@
 {-# LANGUAGE ForeignFunctionInterface #-}
 {-# LANGUAGE MagicHash #-}
 module System.Metrics.ThreadId
-    ( myThreadId
+    ( myCapability
     ) where
 
 import qualified Control.Concurrent as Concurrent
-import Data.Word (Word32)
-import GHC.Conc (ThreadId(..))
-import GHC.Prim (ThreadId#)
 
-myThreadId :: IO Int
-myThreadId = toInt `fmap` Concurrent.myThreadId
-  where
-    toInt (ThreadId t) = fromIntegral (getThreadId t)
+myCapability :: IO Int
+myCapability = (return . fst) =<< Concurrent.threadCapability =<<
+               Concurrent.myThreadId
 
-foreign import ccall unsafe "rts_getThreadId" getThreadId
-    :: ThreadId# -> Word32
