@@ -28,7 +28,6 @@ module System.Metrics.Distribution
     ) where
 
 import Control.Monad (forM_, replicateM)
-import Data.Array (Array, (!), elems, listArray)
 import Data.Int (Int64)
 import Foreign.C.Types (CInt)
 import Foreign.ForeignPtr (ForeignPtr, mallocForeignPtr, withForeignPtr)
@@ -37,11 +36,12 @@ import Foreign.Storable (Storable(alignment, peek, poke, sizeOf), peekByteOff,
                          pokeByteOff)
 import Prelude hiding (max, min, read, sum)
 
+import Data.Array
 import qualified Data.Mutex as Mutex
 import System.Metrics.ThreadId
 
 -- | An metric for tracking events.
-newtype Distribution = Distribution { unD :: Array Int Stripe }
+newtype Distribution = Distribution { unD :: Array Stripe }
 
 data Stripe = Stripe
     { stripeFp    :: !(ForeignPtr CDistrib)
@@ -117,14 +117,14 @@ numStripes = 8
 myStripe :: Distribution -> IO Stripe
 myStripe distrib = do
     tid <- myCapability
-    return $! unD distrib ! (tid `mod` numStripes)
+    return $! unD distrib `index` (tid `mod` numStripes)
 
 ------------------------------------------------------------------------
 -- Exposed API
 
 -- | Create a new distribution.
 new :: IO Distribution
-new = (Distribution . listArray (0, numStripes - 1)) `fmap`
+new = (Distribution . fromList numStripes) `fmap`
       replicateM numStripes newStripe
 
 -- | Add a value to the distribution.
@@ -149,7 +149,7 @@ read :: Distribution -> IO Stats
 read distrib = do
     result <- newCDistrib
     CDistrib{..} <- withForeignPtr result $ \ resultp -> do
-        forM_ (elems $ unD distrib) $ \ stripe ->
+        forM_ (toList $ unD distrib) $ \ stripe ->
             withForeignPtr (stripeFp stripe) $ \ p ->
             withMutex (stripeMutex stripe) $
             combine p resultp
