@@ -98,6 +98,10 @@ import qualified System.Metrics.Label as Label
 -- user-defined metrics and metrics defined by other libraries. For
 -- example, the Snap web framework could prefix all its metrics with
 -- @\"snap.\"@.
+--
+-- It's customary to suffix the metric name with a short string
+-- explaining the metrics types e.g. using @\"_ms\"@ to denote
+-- milliseconds.
 
 ------------------------------------------------------------------------
 -- * The metric store
@@ -107,7 +111,7 @@ import qualified System.Metrics.Label as Label
 -- disjoint components (e.g. libraries) to contribute to the set of
 -- metrics exposed by an application. Libraries who want to provide a
 -- set of metrics should defined a register method, in the style of
--- 'registerGcMetrics' that registers the metrics in a 'Store'. The
+-- 'registerGcMetrics', that registers the metrics in a 'Store'. The
 -- register function should document which metrics are registered and
 -- their types (i.e. counter, gauge, or label).
 
@@ -151,7 +155,7 @@ newStore = do
 
 -- | Register a non-negative, monotonically increasing, integer-valued
 -- metric. The provided action to read the value must be thread-safe.
-registerCounter :: T.Text    -- ^ Metric name
+registerCounter :: T.Text    -- ^ Counter name
                 -> IO Int64  -- ^ Action to read the current metric value
                 -> Store     -- ^ Metric store
                 -> IO ()
@@ -160,7 +164,7 @@ registerCounter name sample store =
 
 -- | Register an integer-valued metric. The provided action to read
 -- the value must be thread-safe.
-registerGauge :: T.Text    -- ^ Metric name
+registerGauge :: T.Text    -- ^ Gauge name
               -> IO Int64  -- ^ Action to read the current metric value
               -> Store     -- ^ Metric store
               -> IO ()
@@ -169,14 +173,21 @@ registerGauge name sample store =
 
 -- | Register a text metric. The provided action to read the value
 -- must be thread-safe.
-registerLabel :: T.Text     -- ^ Metric name
+registerLabel :: T.Text     -- ^ Label name
               -> IO T.Text  -- ^ Action to read the current metric value
               -> Store      -- ^ Metric store
               -> IO ()
 registerLabel name sample store =
     register name (LabelS sample) store
 
-registerDistribution :: T.Text -> IO Distribution.Stats -> Store -> IO ()
+-- | Register a distribution metric. The provided action to read the
+-- value must be thread-safe.
+registerDistribution
+    :: T.Text                 -- ^ Distribution name
+    -> IO Distribution.Stats  -- ^ Action to read the current metric
+                              -- value
+    -> Store                  -- ^ Metric store
+    -> IO ()
 registerDistribution name sample store =
     register name (DistributionS sample) store
 
@@ -336,7 +347,7 @@ toMs s = round (s * 1000.0)
 -- The runtime overhead of @-T@ is very small so it's safe to always
 -- leave it enabled.
 --
--- Registerd counters:
+-- Registered counters:
 --
 -- [@rts.gc.bytes_allocated@] Total number of bytes allocated
 --
