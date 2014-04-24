@@ -19,8 +19,8 @@ import Prelude hiding (read)
 newtype Counter = C { unC :: Atomic.Atomic }
 
 -- | Create a new, zero initialized, counter.
-new :: Int64 -> IO Counter
-new = fmap C . Atomic.new
+new :: IO Counter
+new = C `fmap` Atomic.new 0
 
 -- | Get the current value of the counter.
 read :: Counter -> IO Int64

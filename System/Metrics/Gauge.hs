@@ -22,8 +22,8 @@ import Prelude hiding (subtract, read)
 newtype Gauge = C { unC :: Atomic.Atomic }
 
 -- | Create a new, zero initialized, gauge.
-new :: Int64 -> IO Gauge
-new = fmap C . Atomic.new
+new :: IO Gauge
+new = C `fmap` Atomic.new 0
 
 -- | Get the current value of the gauge.
 read :: Gauge -> IO Int64
