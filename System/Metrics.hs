@@ -15,10 +15,10 @@
 -- This module provides a way to register metrics in a global \"metric
 -- store\". The store can then be used to get a snapshot of all
 -- metrics. The store also serves as a central place to keep track of
--- all the program's metrics, user and library defined.
+-- all the program's metrics, both user and library defined.
 --
--- Here's an example of creating a single counter of the number of
--- request served by a web server:
+-- Here's an example of creating a single counter, used to count the
+-- number of request served by a web server:
 --
 -- > import System.Metrics
 -- > import qualified System.Metrics.Counter as Counter
@@ -100,7 +100,7 @@ import qualified System.Metrics.Label as Label
 -- @\"snap.\"@.
 --
 -- It's customary to suffix the metric name with a short string
--- explaining the metrics types e.g. using @\"_ms\"@ to denote
+-- explaining the metric's type e.g. using @\"_ms\"@ to denote
 -- milliseconds.
 
 ------------------------------------------------------------------------
@@ -109,11 +109,11 @@ import qualified System.Metrics.Label as Label
 -- $metric-store
 -- The metric store is a shared store of metrics. It allows several
 -- disjoint components (e.g. libraries) to contribute to the set of
--- metrics exposed by an application. Libraries who want to provide a
+-- metrics exposed by an application. Libraries that want to provide a
 -- set of metrics should defined a register method, in the style of
--- 'registerGcMetrics', that registers the metrics in a 'Store'. The
+-- 'registerGcMetrics', that registers the metrics in the 'Store'. The
 -- register function should document which metrics are registered and
--- their types (i.e. counter, gauge, or label).
+-- their types (i.e. counter, gauge, label, or distribution).
 
 -- | A mutable metric store.
 newtype Store = Store { storeState :: IORef State }
@@ -155,6 +155,7 @@ newStore = do
 
 -- | Register a non-negative, monotonically increasing, integer-valued
 -- metric. The provided action to read the value must be thread-safe.
+-- Also see 'createCounter'.
 registerCounter :: T.Text    -- ^ Counter name
                 -> IO Int64  -- ^ Action to read the current metric value
                 -> Store     -- ^ Metric store
@@ -163,7 +164,7 @@ registerCounter name sample store =
     register name (CounterS sample) store
 
 -- | Register an integer-valued metric. The provided action to read
--- the value must be thread-safe.
+-- the value must be thread-safe. Also see 'createGauge'.
 registerGauge :: T.Text    -- ^ Gauge name
               -> IO Int64  -- ^ Action to read the current metric value
               -> Store     -- ^ Metric store
@@ -172,7 +173,7 @@ registerGauge name sample store =
     register name (GaugeS sample) store
 
 -- | Register a text metric. The provided action to read the value
--- must be thread-safe.
+-- must be thread-safe. Also see 'createLabel'.
 registerLabel :: T.Text     -- ^ Label name
               -> IO T.Text  -- ^ Action to read the current metric value
               -> Store      -- ^ Metric store
@@ -181,7 +182,7 @@ registerLabel name sample store =
     register name (LabelS sample) store
 
 -- | Register a distribution metric. The provided action to read the
--- value must be thread-safe.
+-- value must be thread-safe. Also see 'createDistribution'.
 registerDistribution
     :: T.Text                 -- ^ Distribution name
     -> IO Distribution.Stats  -- ^ Action to read the current metric
@@ -213,7 +214,7 @@ alreadyInUseError name =
     error $ "The name \"" ++ show name ++ "\" is already taken " ++
     "by a metric."
 
--- | Register a action that will be executed any time one of the
+-- | Register an action that will be executed any time one of the
 -- metrics computed from the value it returns needs to be sampled.
 --
 -- When one or more of the metrics listed in the first argument needs
@@ -229,17 +230,18 @@ alreadyInUseError name =
 --
 -- * you need a consistent view of several metric or
 --
--- * because sampling the metrics together is more efficient.
+-- * sampling the metrics together is more efficient.
 --
 -- For example, sampling GC statistics needs to be done atomically or
 -- a GC might strike in the middle of sampling, rendering the values
 -- incoherent. Sampling GC statistics is also more efficient if done
--- in one step, as the run-time system provides a function to sample
--- all GC statistics at once.
+-- in \"bulk\", as the run-time system provides a function to sample all
+-- GC statistics at once.
 --
--- Note that sampling of the metrics is only atomic if the action
--- computes @a@ atomically (e.g. if @a@ is a record, the action needs
--- to compute its fields atomically if the sampling is to be atomic.)
+-- Note that sampling of the metrics is only atomic if the provided
+-- action computes @a@ atomically (e.g. if @a@ is a record, the action
+-- needs to compute its fields atomically if the sampling is to be
+-- atomic.)
 --
 -- Example usage:
 --
