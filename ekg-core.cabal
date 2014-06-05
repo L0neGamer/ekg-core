@@ -25,7 +25,6 @@ library
   other-modules:
     Data.Array
     Data.Atomic
-    Data.Mutex
     System.Metrics.ThreadId
 
   build-depends:
@@ -41,7 +40,7 @@ library
   includes: distrib.h
   install-includes: distrib.h
   include-dirs: cbits
-  c-sources: cbits/atomic.c cbits/distrib.c cbits/mutex.c
+  c-sources: cbits/atomic.c cbits/distrib.c
 
 benchmark counter
   main-is: Counter.hs

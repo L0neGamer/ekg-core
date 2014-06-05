@@ -37,7 +37,6 @@ import Foreign.Storable (Storable(alignment, peek, poke, sizeOf), peekByteOff,
 import Prelude hiding (max, min, read, sum)
 
 import Data.Array
-import qualified Data.Mutex as Mutex
 import System.Metrics.ThreadId
 
 -- | An metric for tracking events.
@@ -45,16 +44,7 @@ newtype Distribution = Distribution { unD :: Array Stripe }
 
 data Stripe = Stripe
     { stripeFp    :: !(ForeignPtr CDistrib)
-    , stripeMutex :: !Mutex.Mutex
     }
-
--- | Perform action with lock held. Not exception safe.
-withMutex :: Mutex.Mutex -> IO a -> IO a
-withMutex lock m = do
-    Mutex.lock lock
-    a <- m
-    Mutex.unlock lock
-    return a
 
 data CDistrib = CDistrib
     { cCount      :: !Int64
@@ -63,6 +53,7 @@ data CDistrib = CDistrib
     , cSum        :: !Double
     , cMin        :: !Double
     , cMax        :: !Double
+    , cLock       :: !Int64  -- ^ 0 - unlocked, 1 - locked
     }
 
 instance Storable CDistrib where
@@ -76,6 +67,7 @@ instance Storable CDistrib where
         cSum <- (#peek struct distrib, sum) p
         cMin <- (#peek struct distrib, min) p
         cMax <- (#peek struct distrib, max) p
+        cLock <- (#peek struct distrib, lock) p
         return $! CDistrib
             { cCount      = cCount
             , cMean       = cMean
@@ -83,6 +75,7 @@ instance Storable CDistrib where
             , cSum        = cSum
             , cMin        = cMin
             , cMax        = cMax
+            , cLock       = cLock
             }
 
     poke p CDistrib{..} = do
@@ -92,20 +85,27 @@ instance Storable CDistrib where
         (#poke struct distrib, sum) p cSum
         (#poke struct distrib, min) p cMin
         (#poke struct distrib, max) p cMax
+        (#poke struct distrib, lock) p cLock
 
 newCDistrib :: IO (ForeignPtr CDistrib)
 newCDistrib = do
     fp <- mallocForeignPtr
-    withForeignPtr fp $ \ p -> poke p $ CDistrib 0 0.0 0.0 0.0 0.0 0.0
+    withForeignPtr fp $ \ p -> poke p $ CDistrib
+        { cCount      = 0
+        , cMean       = 0.0
+        , cSumSqDelta = 0.0
+        , cSum        = 0.0
+        , cMin        = 0.0
+        , cMax        = 0.0
+        , cLock       = 0
+        }
     return fp
 
 newStripe :: IO Stripe
 newStripe = do
     fp <- newCDistrib
-    mutex <- Mutex.new
     return $! Stripe
         { stripeFp    = fp
-        , stripeMutex = mutex
         }
 
 -- | Number of lock stripes. Should be greater or equal to the number
@@ -139,7 +139,7 @@ addN :: Distribution -> Double -> Int64 -> IO ()
 addN distrib val n = do
     stripe <- myStripe distrib
     withForeignPtr (stripeFp stripe) $ \ p ->
-        withMutex (stripeMutex stripe) $ cDistribAddN p val n
+        cDistribAddN p val n
 
 foreign import ccall unsafe "hs_distrib_combine" combine
     :: Ptr CDistrib -> Ptr CDistrib -> IO ()
@@ -151,7 +151,6 @@ read distrib = do
     CDistrib{..} <- withForeignPtr result $ \ resultp -> do
         forM_ (toList $ unD distrib) $ \ stripe ->
             withForeignPtr (stripeFp stripe) $ \ p ->
-            withMutex (stripeMutex stripe) $
             combine p resultp
         peek resultp
     return $! Stats
