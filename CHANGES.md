@@ -1,7 +1,10 @@
-## 0.1.0.2 (2014-09-30)
+## 0.1.0.3 (2015-02-11)
 
  * Allow base 4.9.
  * Pass -march=i686 to C compilers to enable atomics
+
+## 0.1.0.2 (2014-09-30)
+
  * Bump upper bound on text to 1.3
 
 ## 0.1.0.1 (2013-06-06)
