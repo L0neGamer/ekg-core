@@ -1,5 +1,5 @@
 name:                ekg-core
-version:             0.1.0.4
+version:             0.1.1.0
 synopsis:            Tracking of system metrics
 description:
   This library lets you defined and track system metrics.

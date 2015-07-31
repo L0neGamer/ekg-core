@@ -1,3 +1,7 @@
+## 0.1.1.0 (2015-07-31)
+
+ * Expose internals for use in ekg-json.
+
 ## 0.1.0.4 (2015-04-12)
 
  * GHC 7.10 support.
