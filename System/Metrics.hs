@@ -517,7 +517,7 @@ data Value = Counter {-# UNPACK #-} !Int64
            | Gauge {-# UNPACK #-} !Int64
            | Label {-# UNPACK #-} !T.Text
            | Distribution !Distribution.Stats
-           deriving Show
+           deriving (Eq, Show)
 
 sampleOne :: MetricSampler -> IO Value
 sampleOne (CounterS m)      = Counter <$> m

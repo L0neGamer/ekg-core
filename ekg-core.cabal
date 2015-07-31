@@ -19,6 +19,7 @@ library
     System.Metrics
     System.Metrics.Counter
     System.Metrics.Distribution
+    System.Metrics.Distribution.Internal
     System.Metrics.Gauge
     System.Metrics.Label
 

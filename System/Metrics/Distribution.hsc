@@ -37,6 +37,7 @@ import Foreign.Storable (Storable(alignment, peek, poke, sizeOf), peekByteOff,
 import Prelude hiding (max, min, read, sum)
 
 import Data.Array
+import System.Metrics.Distribution.Internal (Stats(..))
 import System.Metrics.ThreadId
 
 -- | An metric for tracking events.
@@ -162,13 +163,3 @@ read distrib = do
         , min   = cMin
         , max   = cMax
         }
-
--- | Distribution statistics
-data Stats = Stats
-    { mean     :: !Double  -- ^ Sample mean
-    , variance :: !Double  -- ^ Biased sample variance
-    , count    :: !Int64   -- ^ Event count
-    , sum      :: !Double  -- ^ Sum of values
-    , min      :: !Double  -- ^ Min value seen
-    , max      :: !Double  -- ^ Max value seen
-    } deriving Show
