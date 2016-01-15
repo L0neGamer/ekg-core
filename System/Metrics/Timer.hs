@@ -8,11 +8,13 @@ module System.Metrics.Timer
     , new
     , read
     , set
+    , withTimer
     ) where
 
 import qualified Data.Atomic as Atomic
+import Control.Monad.IO.Class
 import Data.Int (Int64)
-import Data.Time (NominalDiffTime)
+import Data.Time (NominalDiffTime, getCurrentTime, diffUTCTime)
 import Prelude hiding (read)
 
 -- | A mutable, integer-valued timer.
@@ -31,3 +33,12 @@ set :: Timer -> NominalDiffTime -> IO ()
 set timer = Atomic.write (unT timer) . microseconds
   -- statsd protocol mandates milliseconds.
   where microseconds = round . (* 1000)
+
+-- | Time a MonadIO action.
+withTimer :: (MonadIO m) => Timer -> m a -> m a
+withTimer timer action = do
+  t0 <- liftIO getCurrentTime
+  result <- action
+  t1 <- liftIO getCurrentTime
+  liftIO (set timer (diffUTCTime t1 t0))
+  return result
