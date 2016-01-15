@@ -23,6 +23,7 @@ library
     System.Metrics.Distribution.Internal
     System.Metrics.Gauge
     System.Metrics.Label
+    System.Metrics.Timer
 
   other-modules:
     Data.Array
