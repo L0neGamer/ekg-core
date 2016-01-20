@@ -46,6 +46,7 @@ module System.Metrics
       -- $registering
     , registerCounter
     , registerGauge
+    , registerTimer
     , registerLabel
     , registerDistribution
     , registerGroup
@@ -54,6 +55,7 @@ module System.Metrics
       -- $convenience
     , createCounter
     , createGauge
+    , createTimer
     , createLabel
     , createDistribution
 
@@ -68,7 +70,6 @@ module System.Metrics
     , Value(..)
     ) where
 
-import Control.Applicative ((<$>))
 import Control.Monad (forM)
 import Data.Int (Int64)
 import qualified Data.IntMap.Strict as IM
@@ -84,6 +85,8 @@ import System.Metrics.Distribution (Distribution)
 import qualified System.Metrics.Distribution as Distribution
 import System.Metrics.Gauge (Gauge)
 import qualified System.Metrics.Gauge as Gauge
+import System.Metrics.Timer (Timer)
+import qualified System.Metrics.Timer as Timer
 import System.Metrics.Label (Label)
 import qualified System.Metrics.Label as Label
 
@@ -135,6 +138,7 @@ data GroupSampler = forall a. GroupSampler
 -- TODO: Rename this to Metric and Metric to SampledMetric.
 data MetricSampler = CounterS !(IO Int64)
                    | GaugeS !(IO Int64)
+                   | TimerS !(IO Int64)
                    | LabelS !(IO T.Text)
                    | DistributionS !(IO Distribution.Stats)
 
@@ -171,6 +175,15 @@ registerGauge :: T.Text    -- ^ Gauge name
               -> IO ()
 registerGauge name sample store =
     register name (GaugeS sample) store
+
+-- | Register a timer metric. The provided action to read the value
+-- must be thread-safe. Also see 'createTimer'.
+registerTimer :: T.Text   -- ^ Timer name
+              -> IO Int64 -- ^ Action to read the current metric value
+              -> Store    -- ^ Metric store
+              -> IO ()
+registerTimer name sample store =
+    register name (TimerS sample) store
 
 -- | Register a text metric. The provided action to read the value
 -- must be thread-safe. Also see 'createLabel'.
@@ -304,6 +317,15 @@ createGauge name store = do
     gauge <- Gauge.new
     registerGauge name (Gauge.read gauge) store
     return gauge
+
+-- | Create and register a zero-initialized timer.
+createTimer :: T.Text -- ^ Timer name
+            -> Store -- ^ Metric store
+            -> IO Timer
+createTimer name store = do
+    timer <- Timer.new
+    registerTimer name (Timer.read timer) store
+    return timer
 
 -- | Create and register an empty label.
 createLabel :: T.Text  -- ^ Label name
@@ -515,6 +537,7 @@ sampleGroups cbSamplers = concat `fmap` sequence (map runOne cbSamplers)
 -- | The value of a sampled metric.
 data Value = Counter {-# UNPACK #-} !Int64
            | Gauge {-# UNPACK #-} !Int64
+           | Timer {-# UNPACK #-} !Int64
            | Label {-# UNPACK #-} !T.Text
            | Distribution !Distribution.Stats
            deriving (Eq, Show)
@@ -524,6 +547,7 @@ sampleOne (CounterS m)      = Counter <$> m
 sampleOne (GaugeS m)        = Gauge <$> m
 sampleOne (LabelS m)        = Label <$> m
 sampleOne (DistributionS m) = Distribution <$> m
+sampleOne (TimerS m)        = Timer <$> m
 
 -- | Get a snapshot of all values.  Note that we're not guaranteed to
 -- see a consistent snapshot of the whole map.
