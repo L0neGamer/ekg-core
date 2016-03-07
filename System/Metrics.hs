@@ -1,8 +1,8 @@
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE BangPatterns              #-}
+{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE RecordWildCards           #-}
 -- | A module for defining metrics that can be monitored.
 --
 -- Metrics are used to monitor program behavior and performance. All
@@ -60,7 +60,7 @@ module System.Metrics
       -- ** Predefined metrics
       -- $predefined
     , registerGcMetrics
-
+    , registerNamedGcMetrics
       -- * Sampling metrics
       -- $sampling
     , Sample
@@ -68,24 +68,26 @@ module System.Metrics
     , Value(..)
     ) where
 
-import Control.Applicative ((<$>))
-import Control.Monad (forM)
-import Data.Int (Int64)
-import qualified Data.IntMap.Strict as IM
-import Data.IORef (IORef, atomicModifyIORef, newIORef, readIORef)
-import qualified Data.HashMap.Strict as M
-import qualified Data.Text as T
-import qualified GHC.Stats as Stats
-import Prelude hiding (read)
+import           Control.Applicative         ((<$>))
+import           Control.Monad               (forM)
+import qualified Data.HashMap.Strict         as M
+import           Data.Int                    (Int64)
+import qualified Data.IntMap.Strict          as IM
+import           Data.IORef                  (IORef, atomicModifyIORef,
+                                              newIORef, readIORef)
+import           Data.Monoid                 ((<>))
+import qualified Data.Text                   as T
+import qualified GHC.Stats                   as Stats
+import           Prelude                     hiding (read)
 
-import System.Metrics.Counter (Counter)
-import qualified System.Metrics.Counter as Counter
-import System.Metrics.Distribution (Distribution)
+import           System.Metrics.Counter      (Counter)
+import qualified System.Metrics.Counter      as Counter
+import           System.Metrics.Distribution (Distribution)
 import qualified System.Metrics.Distribution as Distribution
-import System.Metrics.Gauge (Gauge)
-import qualified System.Metrics.Gauge as Gauge
-import System.Metrics.Label (Label)
-import qualified System.Metrics.Label as Label
+import           System.Metrics.Gauge        (Gauge)
+import qualified System.Metrics.Gauge        as Gauge
+import           System.Metrics.Label        (Label)
+import qualified System.Metrics.Label        as Label
 
 -- $naming
 -- Compound metric names should be separated using underscores.
@@ -407,32 +409,44 @@ toMs s = round (s * 1000.0)
 -- @par_tot_bytes_copied@ divided by @par_max_bytes_copied@ approaches
 -- 1 for a maximally sequential run and approaches the number of
 -- threads (set by the RTS flag @-N@) for a maximally parallel run.
+
 registerGcMetrics :: Store -> IO ()
-registerGcMetrics store =
+registerGcMetrics  = registerNamedGcMetrics ""
+
+
+-- | same as registerGcMetrics but you can append a namespace
+-- >>> registerNamedGcMetrics "myapp" store
+-- produces: 'myapp.rts.gc.xxx' for all Store entries
+registerNamedGcMetrics :: T.Text -> Store -> IO ()
+registerNamedGcMetrics namespace store =
     registerGroup
     (M.fromList
-     [ ("rts.gc.bytes_allocated"          , Counter . Stats.bytesAllocated)
-     , ("rts.gc.num_gcs"                  , Counter . Stats.numGcs)
-     , ("rts.gc.num_bytes_usage_samples"  , Counter . Stats.numByteUsageSamples)
-     , ("rts.gc.cumulative_bytes_used"    , Counter . Stats.cumulativeBytesUsed)
-     , ("rts.gc.bytes_copied"             , Counter . Stats.bytesCopied)
-     , ("rts.gc.mutator_cpu_ms"           , Counter . toMs . Stats.mutatorCpuSeconds)
-     , ("rts.gc.mutator_wall_ms"          , Counter . toMs . Stats.mutatorWallSeconds)
-     , ("rts.gc.gc_cpu_ms"                , Counter . toMs . Stats.gcCpuSeconds)
-     , ("rts.gc.gc_wall_ms"               , Counter . toMs . Stats.gcWallSeconds)
-     , ("rts.gc.cpu_ms"                   , Counter . toMs . Stats.cpuSeconds)
-     , ("rts.gc.wall_ms"                  , Counter . toMs . Stats.wallSeconds)
-     , ("rts.gc.max_bytes_used"           , Gauge . Stats.maxBytesUsed)
-     , ("rts.gc.current_bytes_used"       , Gauge . Stats.currentBytesUsed)
-     , ("rts.gc.current_bytes_slop"       , Gauge . Stats.currentBytesSlop)
-     , ("rts.gc.max_bytes_slop"           , Gauge . Stats.maxBytesSlop)
-     , ("rts.gc.peak_megabytes_allocated" , Gauge . Stats.peakMegabytesAllocated)
-     , ("rts.gc.par_tot_bytes_copied"     , Gauge . gcParTotBytesCopied)
-     , ("rts.gc.par_avg_bytes_copied"     , Gauge . gcParTotBytesCopied)
-     , ("rts.gc.par_max_bytes_copied"     , Gauge . Stats.parMaxBytesCopied)
+     [ (namespace' <> "rts.gc.bytes_allocated"          , Counter . Stats.bytesAllocated)
+     , (namespace' <> "rts.gc.num_gcs"                  , Counter . Stats.numGcs)
+     , (namespace' <> "rts.gc.num_bytes_usage_samples"  , Counter . Stats.numByteUsageSamples)
+     , (namespace' <> "rts.gc.cumulative_bytes_used"    , Counter . Stats.cumulativeBytesUsed)
+     , (namespace' <> "rts.gc.bytes_copied"             , Counter . Stats.bytesCopied)
+     , (namespace' <> "rts.gc.mutator_cpu_ms"           , Counter . toMs . Stats.mutatorCpuSeconds)
+     , (namespace' <> "rts.gc.mutator_wall_ms"          , Counter . toMs . Stats.mutatorWallSeconds)
+     , (namespace' <> "rts.gc.gc_cpu_ms"                , Counter . toMs . Stats.gcCpuSeconds)
+     , (namespace' <> "rts.gc.gc_wall_ms"               , Counter . toMs . Stats.gcWallSeconds)
+     , (namespace' <> "rts.gc.cpu_ms"                   , Counter . toMs . Stats.cpuSeconds)
+     , (namespace' <> "rts.gc.wall_ms"                  , Counter . toMs . Stats.wallSeconds)
+     , (namespace' <> "rts.gc.max_bytes_used"           , Gauge . Stats.maxBytesUsed)
+     , (namespace' <> "rts.gc.current_bytes_used"       , Gauge . Stats.currentBytesUsed)
+     , (namespace' <> "rts.gc.current_bytes_slop"       , Gauge . Stats.currentBytesSlop)
+     , (namespace' <> "rts.gc.max_bytes_slop"           , Gauge . Stats.maxBytesSlop)
+     , (namespace' <> "rts.gc.peak_megabytes_allocated" , Gauge . Stats.peakMegabytesAllocated)
+     , (namespace' <> "rts.gc.par_tot_bytes_copied"     , Gauge . gcParTotBytesCopied)
+     , (namespace' <> "rts.gc.par_avg_bytes_copied"     , Gauge . gcParTotBytesCopied)
+     , (namespace' <> "rts.gc.par_max_bytes_copied"     , Gauge . Stats.parMaxBytesCopied)
      ])
     getGcStats
     store
+  where
+    namespace'
+      |T.null namespace = namespace
+      |otherwise = namespace <> "."
 
 -- | Get GC statistics.
 getGcStats :: IO Stats.GCStats
