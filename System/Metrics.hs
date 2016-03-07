@@ -416,7 +416,7 @@ registerGcMetrics  = registerNamedGcMetrics ""
 
 -- | same as registerGcMetrics but you can append a namespace
 -- >>> registerNamedGcMetrics "myapp" store
--- produces: 'myapp.rts.gc.xxx' for all Store entries
+-- produces: 'myapp.rts.gc.xxx' for all Store entriesbc
 registerNamedGcMetrics :: T.Text -> Store -> IO ()
 registerNamedGcMetrics namespace store =
     registerGroup
