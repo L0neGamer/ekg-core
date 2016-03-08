@@ -1,8 +1,8 @@
-{-# LANGUAGE BangPatterns              #-}
-{-# LANGUAGE CPP                       #-}
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE OverloadedStrings         #-}
-{-# LANGUAGE RecordWildCards           #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 -- | A module for defining metrics that can be monitored.
 --
 -- Metrics are used to monitor program behavior and performance. All
@@ -414,9 +414,9 @@ registerGcMetrics :: Store -> IO ()
 registerGcMetrics  = registerNamedGcMetrics ""
 
 
--- | same as registerGcMetrics but you can append a namespace
+-- | Same as 'registerGcMetrics' but you can append a namespace
 -- >>> registerNamedGcMetrics "myapp" store
--- produces: 'myapp.rts.gc.xxx' for all Store entriesbc
+-- Produces: 'myapp.rts.gc.xxx' for all Store entriesbc
 registerNamedGcMetrics :: T.Text -> Store -> IO ()
 registerNamedGcMetrics namespace store =
     registerGroup
