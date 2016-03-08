@@ -11,4 +11,4 @@ cabal.config
 cabal.sandbox.config
 examples/Group
 *.sublime-*
-/TAGS
+
