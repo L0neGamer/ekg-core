@@ -445,6 +445,29 @@ getGcStats = do
 
 -- | Empty GC statistics, as if the application hasn't started yet.
 emptyGCStats :: Stats.GCStats
+#if MIN_VERSION_base(4,10,0)
+emptyGCStats = Stats.GCStats
+    { bytesAllocated         = 0
+    , numGcs                 = 0
+    , maxBytesUsed           = 0
+    , numByteUsageSamples    = 0
+    , cumulativeBytesUsed    = 0
+    , bytesCopied            = 0
+    , currentBytesUsed       = 0
+    , currentBytesSlop       = 0
+    , maxBytesSlop           = 0
+    , peakMegabytesAllocated = 0
+    , mutatorCpuSeconds      = 0
+    , mutatorWallSeconds     = 0
+    , gcCpuSeconds           = 0
+    , gcWallSeconds          = 0
+    , cpuSeconds             = 0
+    , wallSeconds            = 0
+    , parTotBytesCopied      = 0
+    , parMaxBytesCopied      = 0
+    , mblocksAllocated       = 0
+    }
+#else
 emptyGCStats = Stats.GCStats
     { bytesAllocated         = 0
     , numGcs                 = 0
@@ -465,6 +488,7 @@ emptyGCStats = Stats.GCStats
     , parTotBytesCopied      = 0
     , parMaxBytesCopied      = 0
     }
+#endif
 #else
 getGcStats = Stats.getGCStats
 #endif
