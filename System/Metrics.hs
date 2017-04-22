@@ -3,6 +3,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- | A module for defining metrics that can be monitored.
 --
 -- Metrics are used to monitor program behavior and performance. All
@@ -36,10 +37,13 @@ module System.Metrics
     (
       -- * Naming metrics
       -- $naming
+      Tags
+    , dimensional
+    , unidimensional
 
       -- * The metric store
       -- $metric-store
-      Store
+    , Store
     , newStore
 
       -- * Registering metrics
@@ -73,7 +77,10 @@ import Control.Monad (forM)
 import Data.Int (Int64)
 import qualified Data.IntMap.Strict as IM
 import Data.IORef (IORef, atomicModifyIORef, newIORef, readIORef)
+import Data.Hashable (Hashable)
 import qualified Data.HashMap.Strict as M
+import qualified Data.List.NonEmpty as NE
+import Data.String (IsString(..))
 import qualified Data.Text as T
 import qualified GHC.Stats as Stats
 import Prelude hiding (read)
@@ -122,14 +129,14 @@ type GroupId = Int
 
 -- | The 'Store' state.
 data State = State
-     { stateMetrics :: !(M.HashMap T.Text (Either MetricSampler GroupId))
+     { stateMetrics :: !(M.HashMap Tags (Either MetricSampler GroupId))
      , stateGroups  :: !(IM.IntMap GroupSampler)
      , stateNextId  :: {-# UNPACK #-} !Int
      }
 
 data GroupSampler = forall a. GroupSampler
      { groupSampleAction   :: !(IO a)
-     , groupSamplerMetrics :: !(M.HashMap T.Text (a -> Value))
+     , groupSamplerMetrics :: !(M.HashMap Tags (a -> Value))
      }
 
 -- TODO: Rename this to Metric and Metric to SampledMetric.
@@ -144,6 +151,27 @@ newStore = do
     state <- newIORef $ State M.empty IM.empty 0
     return $ Store state
 
+-- | A metric is identified by a non-empty, ordered list of tags.
+--
+-- The first tag conventionally is the counter name.
+--
+-- Note that the default 'IsString' instance uses a 'unidimensional' tag for
+-- retro-compatibility and syntaxical reason.
+newtype Tags = Tags { _tags :: NE.NonEmpty T.Text }
+    deriving (Eq, Show, Hashable)
+
+instance IsString Tags where
+    fromString = unidimensional . fromString
+
+-- | Creates a dimensional metric from a name tag and an ordered list of
+-- dimensions.
+dimensional :: T.Text -> [T.Text] -> Tags
+dimensional n dims = Tags $ n NE.:| dims
+
+-- | Creates a unidimensional metric with a single tag.
+unidimensional :: T.Text -> Tags
+unidimensional n = dimensional n []
+
 ------------------------------------------------------------------------
 -- * Registering metrics
 
@@ -156,7 +184,7 @@ newStore = do
 -- | Register a non-negative, monotonically increasing, integer-valued
 -- metric. The provided action to read the value must be thread-safe.
 -- Also see 'createCounter'.
-registerCounter :: T.Text    -- ^ Counter name
+registerCounter :: Tags      -- ^ Counter name
                 -> IO Int64  -- ^ Action to read the current metric value
                 -> Store     -- ^ Metric store
                 -> IO ()
@@ -165,7 +193,7 @@ registerCounter name sample store =
 
 -- | Register an integer-valued metric. The provided action to read
 -- the value must be thread-safe. Also see 'createGauge'.
-registerGauge :: T.Text    -- ^ Gauge name
+registerGauge :: Tags      -- ^ Gauge name
               -> IO Int64  -- ^ Action to read the current metric value
               -> Store     -- ^ Metric store
               -> IO ()
@@ -174,7 +202,7 @@ registerGauge name sample store =
 
 -- | Register a text metric. The provided action to read the value
 -- must be thread-safe. Also see 'createLabel'.
-registerLabel :: T.Text     -- ^ Label name
+registerLabel :: Tags       -- ^ Label name
               -> IO T.Text  -- ^ Action to read the current metric value
               -> Store      -- ^ Metric store
               -> IO ()
@@ -184,7 +212,7 @@ registerLabel name sample store =
 -- | Register a distribution metric. The provided action to read the
 -- value must be thread-safe. Also see 'createDistribution'.
 registerDistribution
-    :: T.Text                 -- ^ Distribution name
+    :: Tags                   -- ^ Distribution name
     -> IO Distribution.Stats  -- ^ Action to read the current metric
                               -- value
     -> Store                  -- ^ Metric store
@@ -192,7 +220,7 @@ registerDistribution
 registerDistribution name sample store =
     register name (DistributionS sample) store
 
-register :: T.Text
+register :: Tags
          -> MetricSampler
          -> Store
          -> IO ()
@@ -209,7 +237,7 @@ register name sample store = do
 
 -- | Raise an exception indicating that the metric name is already in
 -- use.
-alreadyInUseError :: T.Text -> a
+alreadyInUseError :: Tags   -> a
 alreadyInUseError name =
     error $ "The name \"" ++ show name ++ "\" is already taken " ++
     "by a metric."
@@ -258,7 +286,7 @@ alreadyInUseError name =
 -- >             ]
 -- >     registerGroup (M.fromList metrics) getGCStats store
 registerGroup
-    :: M.HashMap T.Text
+    :: M.HashMap Tags
        (a -> Value)  -- ^ Metric names and getter functions.
     -> IO a          -- ^ Action to sample the metric group
     -> Store         -- ^ Metric store
@@ -288,7 +316,7 @@ registerGroup getters cb store = do
 -- convenient function.
 
 -- | Create and register a zero-initialized counter.
-createCounter :: T.Text  -- ^ Counter name
+createCounter :: Tags    -- ^ Counter name
               -> Store   -- ^ Metric store
               -> IO Counter
 createCounter name store = do
@@ -297,7 +325,7 @@ createCounter name store = do
     return counter
 
 -- | Create and register a zero-initialized gauge.
-createGauge :: T.Text  -- ^ Gauge name
+createGauge :: Tags    -- ^ Gauge name
             -> Store   -- ^ Metric store
             -> IO Gauge
 createGauge name store = do
@@ -306,7 +334,7 @@ createGauge name store = do
     return gauge
 
 -- | Create and register an empty label.
-createLabel :: T.Text  -- ^ Label name
+createLabel :: Tags    -- ^ Label name
             -> Store   -- ^ Metric store
             -> IO Label
 createLabel name store = do
@@ -315,7 +343,7 @@ createLabel name store = do
     return label
 
 -- | Create and register an event tracker.
-createDistribution :: T.Text  -- ^ Distribution name
+createDistribution :: Tags    -- ^ Distribution name
                    -> Store   -- ^ Metric store
                    -> IO Distribution
 createDistribution name store = do
@@ -512,7 +540,7 @@ gcParTotBytesCopied = Stats.parAvgBytesCopied
 -- metrics atomically.
 
 -- | A sample of some metrics.
-type Sample = M.HashMap T.Text Value
+type Sample = M.HashMap Tags Value
 
 -- | Sample all metrics. Sampling is /not/ atomic in the sense that
 -- some metrics might have been mutated before they're sampled but
@@ -528,10 +556,10 @@ sampleAll store = do
     return $! M.fromList allSamples
 
 -- | Sample all metric groups.
-sampleGroups :: [GroupSampler] -> IO [(T.Text, Value)]
+sampleGroups :: [GroupSampler] -> IO [(Tags , Value)]
 sampleGroups cbSamplers = concat `fmap` sequence (map runOne cbSamplers)
   where
-    runOne :: GroupSampler -> IO [(T.Text, Value)]
+    runOne :: GroupSampler -> IO [(Tags , Value)]
     runOne GroupSampler{..} = do
         a <- groupSampleAction
         return $! map (\ (n, f) -> (n, f a)) (M.toList groupSamplerMetrics)
@@ -551,8 +579,8 @@ sampleOne (DistributionS m) = Distribution <$> m
 
 -- | Get a snapshot of all values.  Note that we're not guaranteed to
 -- see a consistent snapshot of the whole map.
-readAllRefs :: M.HashMap T.Text (Either MetricSampler GroupId)
-            -> IO [(T.Text, Value)]
+readAllRefs :: M.HashMap Tags (Either MetricSampler GroupId)
+            -> IO [(Tags, Value)]
 readAllRefs m = do
     forM ([(name, ref) | (name, Left ref) <- M.toList m]) $ \ (name, ref) -> do
         val <- sampleOne ref
