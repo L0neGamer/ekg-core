@@ -8,7 +8,8 @@ bug-reports:         https://github.com/tibbe/ekg-core/issues
 license:             BSD3
 license-file:        LICENSE
 author:              Johan Tibell
-maintainer:          johan.tibell@gmail.com
+maintainer:          Johan Tibell <johan.tibell@gmail.com>,
+                     Mikhail Glushenkov <mikhail.glushenkov@gmail.com>
 category:            System
 build-type:          Simple
 extra-source-files:  CHANGES.md
