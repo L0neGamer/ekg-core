@@ -1,5 +1,5 @@
 name:                ekg-core
-version:             0.1.1.1
+version:             0.1.1.2
 synopsis:            Tracking of system metrics
 description:
   This library lets you defined and track system metrics.
@@ -13,7 +13,7 @@ category:            System
 build-type:          Simple
 extra-source-files:  CHANGES.md
 cabal-version:       >=1.10
-tested-with:         GHC==8.0.1, GHC == 7.10.1, GHC == 7.8.4, GHC == 7.6.3
+tested-with:         GHC==8.2.1, GHC==8.0.1, GHC == 7.10.1, GHC == 7.8.4, GHC == 7.6.3
 
 library
   exposed-modules:
