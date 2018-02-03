@@ -49,6 +49,7 @@ module System.Metrics
     , registerLabel
     , registerDistribution
     , registerGroup
+    , registerDimensional
 
       -- ** Convenience functions
       -- $convenience
@@ -56,6 +57,10 @@ module System.Metrics
     , createGauge
     , createLabel
     , createDistribution
+    , createDimensionalCounter
+    , createDimensionalGauge
+    , createDimensionalLabel
+    , createDimensionalDistribution
 
       -- ** Predefined metrics
       -- $predefined
@@ -70,7 +75,9 @@ module System.Metrics
 
 import Control.Applicative ((<$>))
 import Control.Monad (forM)
+import Data.Either (partitionEithers)
 import Data.Int (Int64)
+import Data.Monoid ((<>))
 import qualified Data.IntMap.Strict as IM
 import Data.IORef (IORef, atomicModifyIORef, newIORef, readIORef)
 import qualified Data.HashMap.Strict as M
@@ -86,6 +93,8 @@ import System.Metrics.Gauge (Gauge)
 import qualified System.Metrics.Gauge as Gauge
 import System.Metrics.Label (Label)
 import qualified System.Metrics.Label as Label
+import System.Metrics.Dimensional (Dimensional)
+import qualified System.Metrics.Dimensional as Dimensional
 
 -- $naming
 -- Compound metric names should be separated using underscores.
@@ -137,6 +146,7 @@ data MetricSampler = CounterS !(IO Int64)
                    | GaugeS !(IO Int64)
                    | LabelS !(IO T.Text)
                    | DistributionS !(IO Distribution.Stats)
+                   | DimensionalS !Dimensional.Dimensions !(IO (M.HashMap Dimensional.Point Value))
 
 -- | Create a new, empty metric store.
 newStore :: IO Store
@@ -191,6 +201,16 @@ registerDistribution
     -> IO ()
 registerDistribution name sample store =
     register name (DistributionS sample) store
+
+-- | Registers a dimensional metric.
+registerDimensional
+    :: Dimensional a
+    -> (a -> IO Value)        -- ^ Function to sample the dimensional metric to a Value.
+    -> Store                  -- ^ Metric store
+    -> IO ()
+registerDimensional d f store =
+    let x = readIORef (Dimensional._points d) >>= traverse f in
+    register (Dimensional._name d) (DimensionalS (Dimensional._dimensions d) x) store
 
 register :: T.Text
          -> MetricSampler
@@ -322,6 +342,48 @@ createDistribution name store = do
     event <- Distribution.new
     registerDistribution name (Distribution.read event) store
     return event
+
+-- | Create and register a zero-initialized dimensional counter.
+createDimensionalCounter :: T.Text                 -- ^ Counter name
+                         -> Store                  -- ^ Metric store
+                         -> Dimensional.Dimensions -- ^ Dimension names.
+                         -> IO (Dimensional Counter)
+createDimensionalCounter name store dims = do
+    counter <- Dimensional.newDimensional Counter.new name "" dims
+    registerDimensional counter (fmap Counter . Counter.read) store
+    return counter
+
+-- | Create and register a zero-initialized dimensional gauge.
+createDimensionalGauge :: T.Text                 -- ^ Gauge name
+                         -> Store                  -- ^ Metric store
+                         -> Dimensional.Dimensions -- ^ Dimension names.
+                         -> IO (Dimensional Gauge)
+createDimensionalGauge name store dims = do
+    gauge <- Dimensional.newDimensional Gauge.new name "" dims
+    registerDimensional gauge (fmap Gauge . Gauge.read) store
+    return gauge
+
+-- | Create and register a zero-initialized dimensional label.
+createDimensionalLabel :: T.Text                 -- ^ Label name
+                         -> Store                  -- ^ Metric store
+                         -> Dimensional.Dimensions -- ^ Dimension names.
+                         -> IO (Dimensional Label)
+createDimensionalLabel name store dims = do
+    label <- Dimensional.newDimensional Label.new name "" dims
+    registerDimensional label (fmap Label . Label.read) store
+    return label
+
+-- | Create and register a zero-initialized dimensional distribution.
+createDimensionalDistribution :: T.Text                 -- ^ Distribution name
+                         -> Store                  -- ^ Metric store
+                         -> Dimensional.Dimensions -- ^ Dimension names.
+                         -> IO (Dimensional Distribution)
+createDimensionalDistribution name store dims = do
+    distribution <- Dimensional.newDimensional Distribution.new name "" dims
+    registerDimensional distribution (fmap Distribution . Distribution.read) store
+    return distribution
+
+
 
 ------------------------------------------------------------------------
 -- * Predefined metrics
@@ -512,7 +574,7 @@ gcParTotBytesCopied = Stats.parAvgBytesCopied
 -- metrics atomically.
 
 -- | A sample of some metrics.
-type Sample = M.HashMap T.Text Value
+type Sample = M.HashMap (T.Text, [(T.Text, T.Text)]) Value
 
 -- | Sample all metrics. Sampling is /not/ atomic in the sense that
 -- some metrics might have been mutated before they're sampled but
@@ -523,9 +585,10 @@ sampleAll store = do
     let metrics = stateMetrics state
         groups = stateGroups state
     cbSample <- sampleGroups $ IM.elems groups
-    sample <- readAllRefs metrics
-    let allSamples = sample ++ cbSample
-    return $! M.fromList allSamples
+    (dimSamples, sample) <- partitionEithers <$> readAllRefs metrics
+    let noDimSamples = [((k,[]),v) | (k,v) <- sample ++ cbSample]
+    let flatDimSamples = [ ((k,zip ds dvs),v) | (k, ds, pointVals) <- dimSamples, (dvs,v) <- pointVals]
+    return $! M.fromList (noDimSamples ++ flatDimSamples)
 
 -- | Sample all metric groups.
 sampleGroups :: [GroupSampler] -> IO [(T.Text, Value)]
@@ -543,17 +606,22 @@ data Value = Counter {-# UNPACK #-} !Int64
            | Distribution !Distribution.Stats
            deriving (Eq, Show)
 
-sampleOne :: MetricSampler -> IO Value
-sampleOne (CounterS m)      = Counter <$> m
-sampleOne (GaugeS m)        = Gauge <$> m
-sampleOne (LabelS m)        = Label <$> m
-sampleOne (DistributionS m) = Distribution <$> m
+type Value2 = Either (Dimensional.Dimensions, [(Dimensional.Point, Value)]) Value
+
+sampleOne :: MetricSampler -> IO Value2
+sampleOne (CounterS m)      = Right . Counter <$> m
+sampleOne (GaugeS m)        = Right . Gauge <$> m
+sampleOne (LabelS m)        = Right . Label <$> m
+sampleOne (DistributionS m) = Right . Distribution <$> m
+sampleOne (DimensionalS dims m)  = Left . (\pairs -> (dims, pairs)) . M.toList <$> m
 
 -- | Get a snapshot of all values.  Note that we're not guaranteed to
 -- see a consistent snapshot of the whole map.
 readAllRefs :: M.HashMap T.Text (Either MetricSampler GroupId)
-            -> IO [(T.Text, Value)]
+            -> IO [Either (T.Text, Dimensional.Dimensions, [(Dimensional.Point, Value)]) (T.Text, Value)] 
 readAllRefs m = do
     forM ([(name, ref) | (name, Left ref) <- M.toList m]) $ \ (name, ref) -> do
         val <- sampleOne ref
-        return (name, val)
+        return $ case val of
+            Left (dims, pairs) -> Left (name, dims, pairs)
+            Right v -> Right (name, v)
