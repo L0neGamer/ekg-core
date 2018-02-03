@@ -22,6 +22,7 @@ library
   exposed-modules:
     System.Metrics
     System.Metrics.Counter
+    System.Metrics.Dimensional
     System.Metrics.Distribution
     System.Metrics.Distribution.Internal
     System.Metrics.Gauge
