@@ -1,4 +1,4 @@
-## 0.1.1.4 (2018-??-??)
+## 0.1.1.4 (2018-02-27)
 
  * GHC 8.4 support ([#23](https://github.com/tibbe/ekg-core/pull/23)).
 
