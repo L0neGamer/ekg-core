@@ -1,3 +1,7 @@
+## 0.1.1.4 (2018-??-??)
+
+ * GHC 8.4 support ([#23](https://github.com/tibbe/ekg-core/pull/23)).
+
 ## 0.1.1.3 (2017-10-10)
 
  * Fix a space leak in `System.Metric.Label.set` ([#21](https://github.com/tibbe/ekg-core/pull/21)).
