@@ -47,6 +47,7 @@ module System.Metrics
     , registerCounter
     , registerGauge
     , registerLabel
+    , registerHeartbeat
     , registerDistribution
     , registerGroup
 
@@ -55,6 +56,7 @@ module System.Metrics
     , createCounter
     , createGauge
     , createLabel
+    , createHeartbeat
     , createDistribution
 
       -- ** Predefined metrics
@@ -84,6 +86,8 @@ import System.Metrics.Distribution (Distribution)
 import qualified System.Metrics.Distribution as Distribution
 import System.Metrics.Gauge (Gauge)
 import qualified System.Metrics.Gauge as Gauge
+import System.Metrics.Heartbeat (Heartbeat)
+import qualified System.Metrics.Heartbeat as Heartbeat
 import System.Metrics.Label (Label)
 import qualified System.Metrics.Label as Label
 
@@ -136,6 +140,7 @@ data GroupSampler = forall a. GroupSampler
 data MetricSampler = CounterS !(IO Int64)
                    | GaugeS !(IO Int64)
                    | LabelS !(IO T.Text)
+                   | HeartbeatS !(IO Int64)
                    | DistributionS !(IO Distribution.Stats)
 
 -- | Create a new, empty metric store.
@@ -180,6 +185,15 @@ registerLabel :: T.Text     -- ^ Label name
               -> IO ()
 registerLabel name sample store =
     register name (LabelS sample) store
+
+-- | Register a heartbeat metric. The provided action to read the value
+-- must be thread-safe. Also see 'createHeartbeat'.
+registerHeartbeat :: T.Text     -- ^ Label name
+                  -> IO Int64 -- ^ Action to read the current metric value
+                  -> Store      -- ^ Metric store
+                  -> IO ()
+registerHeartbeat name sample store =
+    register name (HeartbeatS sample) store
 
 -- | Register a distribution metric. The provided action to read the
 -- value must be thread-safe. Also see 'createDistribution'.
@@ -313,6 +327,15 @@ createLabel name store = do
     label <- Label.new
     registerLabel name (Label.read label) store
     return label
+
+-- | Create and register heartbeat initialized to the current time.
+createHeartbeat :: T.Text  -- ^ Label name
+            -> Store   -- ^ Metric store
+            -> IO Heartbeat
+createHeartbeat name store = do
+    heartbeat <- Heartbeat.new
+    registerHeartbeat name (Heartbeat.read heartbeat) store
+    return heartbeat
 
 -- | Create and register an event tracker.
 createDistribution :: T.Text  -- ^ Distribution name
@@ -604,6 +627,7 @@ sampleGroups cbSamplers = concat `fmap` sequence (map runOne cbSamplers)
 data Value = Counter {-# UNPACK #-} !Int64
            | Gauge {-# UNPACK #-} !Int64
            | Label {-# UNPACK #-} !T.Text
+           | Heartbeat {-# UNPACK #-} !Int64
            | Distribution !Distribution.Stats
            deriving (Eq, Show)
 
@@ -611,6 +635,7 @@ sampleOne :: MetricSampler -> IO Value
 sampleOne (CounterS m)      = Counter <$> m
 sampleOne (GaugeS m)        = Gauge <$> m
 sampleOne (LabelS m)        = Label <$> m
+sampleOne (HeartbeatS m)    = Heartbeat <$> m
 sampleOne (DistributionS m) = Distribution <$> m
 
 -- | Get a snapshot of all values.  Note that we're not guaranteed to
