@@ -370,6 +370,12 @@ sToMs s = round (s * 1000.0)
 --
 -- [@rts.gc.bytes_copied@] Number of bytes copied during GC
 --
+-- [@rts.gc.init_cpu_ms@] CPU time used by the init phase, in
+-- milliseconds. GHC 8.6+ only.
+--
+-- [@rts.gc.init_wall_ms@] Wall clock time spent running the init
+-- phase, in milliseconds. GHC 8.6+ only.
+--
 -- [@rts.gc.mutator_cpu_ms@] CPU time spent running mutator threads,
 -- in milliseconds. This does not include any profiling overhead or
 -- initialization.
@@ -423,6 +429,10 @@ registerGcMetrics store =
      , ("rts.gc.num_bytes_usage_samples"  , Counter . fromIntegral . Stats.major_gcs)
      , ("rts.gc.cumulative_bytes_used"    , Counter . fromIntegral . Stats.cumulative_live_bytes)
      , ("rts.gc.bytes_copied"             , Counter . fromIntegral . Stats.copied_bytes)
+#if MIN_VERSION_base(4,12,0)
+     , ("rts.gc.init_cpu_ms"              , Counter . nsToMs . Stats.init_cpu_ns)
+     , ("rts.gc.init_wall_ms"             , Counter . nsToMs . Stats.init_elapsed_ns)
+#endif
      , ("rts.gc.mutator_cpu_ms"           , Counter . nsToMs . Stats.mutator_cpu_ns)
      , ("rts.gc.mutator_wall_ms"          , Counter . nsToMs . Stats.mutator_elapsed_ns)
      , ("rts.gc.gc_cpu_ms"                , Counter . nsToMs . Stats.gc_cpu_ns)
@@ -491,6 +501,10 @@ emptyRTSStats = Stats.RTSStats
     , cumulative_par_max_copied_bytes      = 0
 # if MIN_VERSION_base(4,11,0)
     , cumulative_par_balanced_copied_bytes = 0
+# if MIN_VERSION_base(4,12,0)
+    , init_cpu_ns                          = 0
+    , init_elapsed_ns                      = 0
+# endif
 # endif
     , mutator_cpu_ns                       = 0
     , mutator_elapsed_ns                   = 0
