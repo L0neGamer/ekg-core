@@ -209,8 +209,8 @@ registerDimensional
     -> Store                  -- ^ Metric store
     -> IO ()
 registerDimensional d f store =
-    let x = readIORef (Dimensional._points d) >>= traverse f in
-    register (Dimensional._name d) (DimensionalS (Dimensional._dimensions d) x) store
+    let x = readIORef (Dimensional.dimensionalPoints d) >>= traverse f in
+    register (Dimensional.dimensionalName d) (DimensionalS (Dimensional.dimensionalDimensions d) x) store
 
 register :: T.Text
          -> MetricSampler
