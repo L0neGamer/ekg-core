@@ -1,3 +1,8 @@
+## 0.1.1.5 (2018-11-19)
+
+ * GHC 8.6 support ([#28](https://github.com/tibbe/ekg-core/pull/28)).
+ * Don't combine distribution if count == 0 ([#25](https://github.com/tibbe/ekg-core/pull/25)).
+
 ## 0.1.1.4 (2018-02-27)
 
  * GHC 8.4 support ([#23](https://github.com/tibbe/ekg-core/pull/23)).
