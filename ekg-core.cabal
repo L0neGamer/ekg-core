@@ -1,4 +1,4 @@
-cabal-version:       1.10
+cabal-version:       1.18
 name:                ekg-core
 version:             0.1.1.6
 synopsis:            Tracking of system metrics
