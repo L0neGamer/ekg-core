@@ -77,6 +77,7 @@ import Control.Applicative ((<$>))
 import Control.Monad (forM)
 import Data.Either (partitionEithers)
 import Data.Int (Int64)
+import Data.Traversable (traverse)
 import Data.Monoid ((<>))
 import qualified Data.IntMap.Strict as IM
 import Data.IORef (IORef, atomicModifyIORef, newIORef, readIORef)

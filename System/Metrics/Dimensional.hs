@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 
 -- | This module defines a type for mutable dimensional string-valued label.
 -- Dimensional label are variable values and can be used to track e.g. the
@@ -18,6 +19,7 @@ import Data.HashMap.Strict (HashMap, empty)
 import qualified Data.HashMap.Strict as HashMap
 import Data.IORef (IORef, atomicModifyIORef', newIORef, readIORef)
 import Data.Text (Text)
+import Data.Typeable
 import GHC.Exception (Exception)
 import Prelude hiding (lookup)
 
@@ -48,7 +50,7 @@ data DimensionError =
   DimensionError !Name
                  !Dimensions
                  !Point
-  deriving (Show, Ord, Eq)
+  deriving (Show, Ord, Eq, Typeable)
 
 instance Exception DimensionError
 
