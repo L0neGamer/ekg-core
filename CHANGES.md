@@ -1,3 +1,8 @@
+## 0.1.1.6 (2018-11-19)
+
+ * Reverted [#25](https://github.com/tibbe/ekg-core/pull/25), which
+   introduced a regression.
+
 ## 0.1.1.5 (2018-11-19)
 
  * GHC 8.6 support ([#28](https://github.com/tibbe/ekg-core/pull/28)).
