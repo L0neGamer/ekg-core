@@ -29,11 +29,6 @@ void hs_distrib_add_n(struct distrib* distrib, StgDouble val, StgInt64 n) {
 // http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
 void hs_distrib_combine(struct distrib* b, struct distrib* a) {
   hs_lock(&b->lock);
-
-  if (!b->count) {
-    return;
-  }
-
   const StgInt64 count = a->count + b->count;
   const StgDouble delta = b->mean - a->mean;
   const StgDouble mean = (a->count * a->mean + b->count * b->mean) / count;

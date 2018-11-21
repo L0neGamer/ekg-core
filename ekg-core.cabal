@@ -1,3 +1,4 @@
+cabal-version:       1.18
 name:                ekg-core
 version:             0.2.0.0
 synopsis:            Tracking of system metrics
@@ -13,7 +14,6 @@ maintainer:          Johan Tibell <johan.tibell@gmail.com>,
 category:            System
 build-type:          Simple
 extra-source-files:  CHANGES.md
-cabal-version:       >=1.10
 tested-with:         GHC == 8.6.2, GHC == 8.4.4,  GHC == 8.2.2,
                      GHC == 8.0.2, GHC == 7.10.3, GHC == 7.8.4,
                      GHC == 7.6.3
