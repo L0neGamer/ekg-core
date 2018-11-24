@@ -1,6 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE CPP #-}
 
 -- | This module defines a type for mutable dimensional string-valued label.
 -- Dimensional label are variable values and can be used to track e.g. the
@@ -15,6 +16,11 @@ import qualified System.Metrics.Label as Label
 
 import Control.Applicative ((<$>), pure)
 import Control.Exception (throwIO)
+#if MIN_VERSION_base(4,8,0)
+import Control.Monad ((<$!>))
+#else
+import System.Compat ((<$!>))
+#endif
 import Data.HashMap.Strict (HashMap, empty)
 import qualified Data.HashMap.Strict as HashMap
 import Data.IORef (IORef, atomicModifyIORef', newIORef, readIORef)
@@ -65,7 +71,7 @@ lookup d pt
   | not $ matchDimensions (dimensionalDimensions d) pt =
     pure $ Left (UnmatchedDimensions err)
   | otherwise = do
-    toLookupResult . HashMap.lookup pt <$> readIORef (dimensionalPoints d)
+    toLookupResult . HashMap.lookup pt <$!> readIORef (dimensionalPoints d)
   where
     err :: DimensionError
     err = DimensionError (dimensionalName d) (dimensionalDimensions d) pt

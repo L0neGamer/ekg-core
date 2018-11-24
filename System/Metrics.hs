@@ -74,7 +74,12 @@ module System.Metrics
     ) where
 
 import Control.Applicative ((<$>))
+#if MIN_VERSION_base(4,8,0)
+import Control.Monad (forM, (<$!>))
+#else
 import Control.Monad (forM)
+import System.Compat ((<$!>))
+#endif
 import Data.Either (partitionEithers)
 import Data.Int (Int64)
 import Data.Traversable (traverse)
@@ -655,6 +660,7 @@ gcParTotBytesCopied = Stats.parAvgBytesCopied
 -- | A sample of some metrics.
 type Sample = M.HashMap (T.Text, [(T.Text, T.Text)]) Value
 
+
 -- | Sample all metrics. Sampling is /not/ atomic in the sense that
 -- some metrics might have been mutated before they're sampled but
 -- after some other metrics have already been sampled.
@@ -692,7 +698,7 @@ sampleOne (CounterS m)      = Right . Counter <$> m
 sampleOne (GaugeS m)        = Right . Gauge <$> m
 sampleOne (LabelS m)        = Right . Label <$> m
 sampleOne (DistributionS m) = Right . Distribution <$> m
-sampleOne (DimensionalS dims m)  = Left . (\pairs -> (dims, pairs)) . M.toList <$> m
+sampleOne (DimensionalS dims m)  = Left . (\pairs -> (dims, pairs)) . M.toList <$!> m
 
 -- | Get a snapshot of all values.  Note that we're not guaranteed to
 -- see a consistent snapshot of the whole map.
@@ -701,6 +707,6 @@ readAllRefs :: M.HashMap T.Text (Either MetricSampler GroupId)
 readAllRefs m = do
     forM ([(name, ref) | (name, Left ref) <- M.toList m]) $ \ (name, ref) -> do
         val <- sampleOne ref
-        return $ case val of
+        return $! case val of
             Left (dims, pairs) -> Left (name, dims, pairs)
             Right v -> Right (name, v)
