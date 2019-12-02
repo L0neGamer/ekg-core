@@ -38,7 +38,7 @@ void hs_distrib_combine(struct distrib* b, struct distrib* a) {
   a->mean = mean;
   a->sum_sq_delta = sum_sq_delta;
   a->sum = a->sum + b->sum;
-  a->min = b->min < a->min ? b->min : a->min;
-  a->max = b->max > a->max ? b->max : a->max;
+  a->min = b->min;
+  a->max = b->max;
   hs_unlock(&b->lock);
 }
