@@ -6,8 +6,10 @@
 .DS_Store
 .cabal-sandbox/
 .hpc/
+.stack-work/
 /dist/*
 cabal.config
 cabal.sandbox.config
 examples/Group
+stack.yaml.lock
 *.sublime-*

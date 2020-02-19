@@ -1,3 +1,7 @@
+## 0.1.1.7 (2020-02-xx)
+
+ * GHC 8.8 support
+
 ## 0.1.1.6 (2018-11-19)
 
  * Reverted [#25](https://github.com/tibbe/ekg-core/pull/25), which

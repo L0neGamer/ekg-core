@@ -1,0 +1,6 @@
+# This is here for ease of testing against latest Stackage LTS releases.
+
+resolver: lts-15.0
+
+packages:
+- .
