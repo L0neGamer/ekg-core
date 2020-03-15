@@ -38,7 +38,7 @@ void hs_distrib_combine(struct distrib* b, struct distrib* a) {
   a->mean = (count == 0) ? 0.0 : mean; // divide-by-zero gives NaN
   a->sum_sq_delta = sum_sq_delta;
   a->sum = a->sum + b->sum;
-  a->min = b->min;
-  a->max = b->max;
+  a->min = b->min; // This is slightly hacky, but ok: see
+  a->max = b->max; // 813aa426be78e8abcf1c7cdd43433bcffa07828e
   hs_unlock(&b->lock);
 }
