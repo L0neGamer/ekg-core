@@ -1,3 +1,9 @@
+## 0.1.1.7 (2019-03-15)
+
+ * Fix two bugs in `cbits` relating to distribution values
+   ([#35](https://github.com/tibbe/ekg-core/pull/35)).
+ * GHC 8.8 support ([#34](https://github.com/tibbe/ekg-core/pull/34)).
+
 ## 0.1.1.6 (2018-11-19)
 
  * Reverted [#25](https://github.com/tibbe/ekg-core/pull/25), which
