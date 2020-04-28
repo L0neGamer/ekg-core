@@ -68,6 +68,7 @@ module System.Metrics
     , Value(..)
     ) where
 
+import Control.Applicative ((<$>))
 import Control.Monad (forM)
 import Data.Int (Int64)
 import qualified Data.IntMap.Strict as IM
