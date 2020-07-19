@@ -70,7 +70,6 @@ module System.Metrics
 
 import Control.Applicative ((<$>))
 import Control.Monad (forM)
-import Data.Int (Int64)
 import qualified Data.IntMap.Strict as IM
 import Data.IORef (IORef, atomicModifyIORef, newIORef, readIORef)
 import qualified Data.HashMap.Strict as M
@@ -133,8 +132,8 @@ data GroupSampler = forall a. GroupSampler
      }
 
 -- TODO: Rename this to Metric and Metric to SampledMetric.
-data MetricSampler = CounterS !(IO Int64)
-                   | GaugeS !(IO Int64)
+data MetricSampler = CounterS !(IO Int)
+                   | GaugeS !(IO Int)
                    | LabelS !(IO T.Text)
                    | DistributionS !(IO Distribution.Stats)
 
@@ -156,18 +155,18 @@ newStore = do
 -- | Register a non-negative, monotonically increasing, integer-valued
 -- metric. The provided action to read the value must be thread-safe.
 -- Also see 'createCounter'.
-registerCounter :: T.Text    -- ^ Counter name
-                -> IO Int64  -- ^ Action to read the current metric value
-                -> Store     -- ^ Metric store
+registerCounter :: T.Text  -- ^ Counter name
+                -> IO Int  -- ^ Action to read the current metric value
+                -> Store   -- ^ Metric store
                 -> IO ()
 registerCounter name sample store =
     register name (CounterS sample) store
 
 -- | Register an integer-valued metric. The provided action to read
 -- the value must be thread-safe. Also see 'createGauge'.
-registerGauge :: T.Text    -- ^ Gauge name
-              -> IO Int64  -- ^ Action to read the current metric value
-              -> Store     -- ^ Metric store
+registerGauge :: T.Text  -- ^ Gauge name
+              -> IO Int  -- ^ Action to read the current metric value
+              -> Store   -- ^ Metric store
               -> IO ()
 registerGauge name sample store =
     register name (GaugeS sample) store
@@ -333,11 +332,11 @@ createDistribution name store = do
 
 #if MIN_VERSION_base(4,10,0)
 -- | Convert nanoseconds to milliseconds.
-nsToMs :: Int64 -> Int64
+nsToMs :: Int -> Int
 nsToMs s = round (realToFrac s / (1000000.0 :: Double))
 #else
 -- | Convert seconds to milliseconds.
-sToMs :: Double -> Int64
+sToMs :: Double -> Int
 sToMs s = round (s * 1000.0)
 #endif
 
@@ -430,15 +429,15 @@ registerGcMetrics store =
      , ("rts.gc.cumulative_bytes_used"    , Counter . fromIntegral . Stats.cumulative_live_bytes)
      , ("rts.gc.bytes_copied"             , Counter . fromIntegral . Stats.copied_bytes)
 #if MIN_VERSION_base(4,12,0)
-     , ("rts.gc.init_cpu_ms"              , Counter . nsToMs . Stats.init_cpu_ns)
-     , ("rts.gc.init_wall_ms"             , Counter . nsToMs . Stats.init_elapsed_ns)
+     , ("rts.gc.init_cpu_ms"              , Counter . nsToMs . fromIntegral . Stats.init_cpu_ns)
+     , ("rts.gc.init_wall_ms"             , Counter . nsToMs . fromIntegral . Stats.init_elapsed_ns)
 #endif
-     , ("rts.gc.mutator_cpu_ms"           , Counter . nsToMs . Stats.mutator_cpu_ns)
-     , ("rts.gc.mutator_wall_ms"          , Counter . nsToMs . Stats.mutator_elapsed_ns)
-     , ("rts.gc.gc_cpu_ms"                , Counter . nsToMs . Stats.gc_cpu_ns)
-     , ("rts.gc.gc_wall_ms"               , Counter . nsToMs . Stats.gc_elapsed_ns)
-     , ("rts.gc.cpu_ms"                   , Counter . nsToMs . Stats.cpu_ns)
-     , ("rts.gc.wall_ms"                  , Counter . nsToMs . Stats.elapsed_ns)
+     , ("rts.gc.mutator_cpu_ms"           , Counter . nsToMs . fromIntegral . Stats.mutator_cpu_ns)
+     , ("rts.gc.mutator_wall_ms"          , Counter . nsToMs . fromIntegral . Stats.mutator_elapsed_ns)
+     , ("rts.gc.gc_cpu_ms"                , Counter . nsToMs . fromIntegral . Stats.gc_cpu_ns)
+     , ("rts.gc.gc_wall_ms"               , Counter . nsToMs . fromIntegral . Stats.gc_elapsed_ns)
+     , ("rts.gc.cpu_ms"                   , Counter . nsToMs . fromIntegral . Stats.cpu_ns)
+     , ("rts.gc.wall_ms"                  , Counter . nsToMs . fromIntegral . Stats.elapsed_ns)
      , ("rts.gc.max_bytes_used"           , Gauge . fromIntegral . Stats.max_live_bytes)
      , ("rts.gc.current_bytes_used"       , Gauge . fromIntegral . Stats.gcdetails_live_bytes . Stats.gc)
      , ("rts.gc.current_bytes_slop"       , Gauge . fromIntegral . Stats.gcdetails_slop_bytes . Stats.gc)
@@ -615,8 +614,8 @@ sampleGroups cbSamplers = concat `fmap` sequence (map runOne cbSamplers)
         return $! map (\ (n, f) -> (n, f a)) (M.toList groupSamplerMetrics)
 
 -- | The value of a sampled metric.
-data Value = Counter {-# UNPACK #-} !Int64
-           | Gauge {-# UNPACK #-} !Int64
+data Value = Counter {-# UNPACK #-} !Int
+           | Gauge {-# UNPACK #-} !Int
            | Label {-# UNPACK #-} !T.Text
            | Distribution !Distribution.Stats
            deriving (Eq, Show)

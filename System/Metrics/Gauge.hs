@@ -15,7 +15,6 @@ module System.Metrics.Gauge
     ) where
 
 import qualified Data.Atomic as Atomic
-import Data.Int (Int64)
 import Prelude hiding (subtract, read)
 
 -- | A mutable, integer-valued gauge.
@@ -26,7 +25,7 @@ new :: IO Gauge
 new = C `fmap` Atomic.new 0
 
 -- | Get the current value of the gauge.
-read :: Gauge -> IO Int64
+read :: Gauge -> IO Int
 read = Atomic.read . unC
 
 -- | Increase the gauge by one.
@@ -38,13 +37,13 @@ dec :: Gauge -> IO ()
 dec gauge = subtract gauge 1
 
 -- | Increase the gauge by the given amount.
-add :: Gauge -> Int64 -> IO ()
+add :: Gauge -> Int -> IO ()
 add gauge = Atomic.add (unC gauge)
 
 -- | Decrease the gauge by the given amount.
-subtract :: Gauge -> Int64 -> IO ()
+subtract :: Gauge -> Int -> IO ()
 subtract gauge = Atomic.subtract (unC gauge)
 
 -- | Set the gauge to the given value.
-set :: Gauge -> Int64 -> IO ()
+set :: Gauge -> Int -> IO ()
 set gauge = Atomic.write (unC gauge)
