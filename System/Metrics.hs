@@ -332,13 +332,10 @@ createDistribution name store = do
 -- function.
 
 #if MIN_VERSION_base(4,10,0)
--- | Convert nanoseconds to milliseconds.
-nsToMs :: Int64 -> Int64
-nsToMs s = round (realToFrac s / (1000000.0 :: Double))
 #else
--- | Convert seconds to milliseconds.
-sToMs :: Double -> Int64
-sToMs s = round (s * 1000.0)
+-- | Convert seconds to nanoseconds.
+sToNs :: Double -> Int64
+sToNs s = round (s * 1000000000.0)
 #endif
 
 -- | Register a number of metrics related to garbage collector
@@ -355,121 +352,128 @@ sToMs s = round (s * 1000.0)
 -- The runtime overhead of @-T@ is very small so it's safe to always
 -- leave it enabled.
 --
--- Registered counters:
+-- Registered counters (see also "GHC.Stats"):
 --
--- [@rts.gc.bytes_allocated@] Total number of bytes allocated
---
--- [@rts.gc.num_gcs@] Number of garbage collections performed
---
--- [@rts.gc.num_bytes_usage_samples@] Number of byte usage samples taken
---
--- [@rts.gc.cumulative_bytes_used@] Sum of all byte usage samples, can be
--- used with @numByteUsageSamples@ to calculate averages with
--- arbitrary weighting (if you are sampling this record multiple
--- times).
---
--- [@rts.gc.bytes_copied@] Number of bytes copied during GC
---
--- [@rts.gc.init_cpu_ms@] CPU time used by the init phase, in
--- milliseconds. GHC 8.6+ only.
---
--- [@rts.gc.init_wall_ms@] Wall clock time spent running the init
--- phase, in milliseconds. GHC 8.6+ only.
---
--- [@rts.gc.mutator_cpu_ms@] CPU time spent running mutator threads,
--- in milliseconds. This does not include any profiling overhead or
--- initialization.
---
--- [@rts.gc.mutator_wall_ms@] Wall clock time spent running mutator
--- threads, in milliseconds. This does not include initialization.
---
--- [@rts.gc.gc_cpu_ms@] CPU time spent running GC, in milliseconds.
---
--- [@rts.gc.gc_wall_ms@] Wall clock time spent running GC, in
--- milliseconds.
---
--- [@rts.gc.cpu_ms@] Total CPU time elapsed since program start, in
--- milliseconds.
---
--- [@rts.gc.wall_ms@] Total wall clock time elapsed since start, in
--- milliseconds.
---
--- Registered gauges:
---
--- [@rts.gc.max_bytes_used@] Maximum number of live bytes seen so far
---
--- [@rts.gc.current_bytes_used@] Current number of live bytes
---
--- [@rts.gc.current_bytes_slop@] Current number of bytes lost to slop
---
--- [@rts.gc.max_bytes_slop@] Maximum number of bytes lost to slop at any one time so far
---
--- [@rts.gc.peak_megabytes_allocated@] Maximum number of megabytes allocated
---
--- [@rts.gc.par_tot_bytes_copied@] Number of bytes copied during GC, minus
--- space held by mutable lists held by the capabilities.  Can be used
--- with 'parMaxBytesCopied' to determine how well parallel GC utilized
--- all cores.
---
--- [@rts.gc.par_avg_bytes_copied@] Deprecated alias for
--- @par_tot_bytes_copied@.
---
--- [@rts.gc.par_max_bytes_copied@] Sum of number of bytes copied each GC by
--- the most active GC thread each GC. The ratio of
--- @par_tot_bytes_copied@ divided by @par_max_bytes_copied@ approaches
--- 1 for a maximally sequential run and approaches the number of
--- threads (set by the RTS flag @-N@) for a maximally parallel run.
+-- > [@rts.gcs@] - Total number of GCs
+-- > [@rts.major_gcs@] - Total number of major (oldest generation) GCs
+-- > [@rts.allocated_bytes@] - Total bytes allocated
+-- > [@rts.max_live_bytes@] - Maximum live data (including large objects + compact regions) in the heap. Updated after a major GC.
+-- > [@rts.max_large_objects_bytes@] - Maximum live data in large objects
+-- > [@rts.max_compact_bytes@] - Maximum live data in compact regions
+-- > [@rts.max_slop_bytes@] - Maximum slop
+-- > [@rts.max_mem_in_use_bytes@] - Maximum memory in use by the RTS
+-- > [@rts.cumulative_live_bytes@] - Sum of live bytes across all major GCs. Divided by major_gcs gives the average live data over the lifetime of the program.
+-- > [@rts.copied_bytes@] - Sum of copied_bytes across all GCs
+-- > [@rts.par_copied_bytes@] - Sum of copied_bytes across all parallel GCs
+-- > [@rts.cumulative_par_max_copied_bytes@] - Sum of par_max_copied_bytes across all parallel GCs. Deprecated.
+-- > [@rts.cumulative_par_balanced_copied_bytes@] - Sum of par_balanced_copied bytes across all parallel GCs
+-- > [@rts.init_cpu_ns@] - Total CPU time used by the init phase @since 4.12.0.0
+-- > [@rts.init_elapsed_ns@] - Total elapsed time used by the init phase @since 4.12.0.0
+-- > [@rts.mutator_cpu_ns@] - Total CPU time used by the mutator
+-- > [@rts.mutator_elapsed_ns@] - Total elapsed time used by the mutator
+-- > [@rts.gc_cpu_ns@] - Total CPU time used by the GC
+-- > [@rts.gc_elapsed_ns@] - Total elapsed time used by the GC
+-- > [@rts.cpu_ns@] - Total CPU time (at the previous GC)
+-- > [@rts.elapsed_ns@] - Total elapsed time (at the previous GC)
+-- > [@rts.gc.gen@] - The generation number of this GC
+-- > [@rts.gc.threads@] - Number of threads used in this GC
+-- > [@rts.gc.allocated_bytes@] - Number of bytes allocated since the previous GC
+-- > [@rts.gc.live_bytes@] - Total amount of live data in the heap (incliudes large + compact data). Updated after every GC. Data in uncollected generations (in minor GCs) are considered live.
+-- > [@rts.gc.large_objects_bytes@] - Total amount of live data in large objects
+-- > [@rts.gc.compact_bytes@] - Total amount of live data in compact regions
+-- > [@rts.gc.slop_bytes@] - Total amount of slop (wasted memory)
+-- > [@rts.gc.mem_in_use_bytes@] - Total amount of memory in use by the RTS
+-- > [@rts.gc.copied_bytes@] - Total amount of data copied during this GC
+-- > [@rts.gc.par_max_copied_bytes@] - In parallel GC, the max amount of data copied by any one thread. Deprecated.
+-- > [@rts.gc.sync_elapsed_ns@] - The time elapsed during synchronisation before GC
+-- > [@rts.gc.cpu_ns@] - The CPU time used during GC itself
+-- > [@rts.gc.elapsed_ns@] - The time elapsed during GC itself
 registerGcMetrics :: Store -> IO ()
 registerGcMetrics store =
     registerGroup
 #if MIN_VERSION_base(4,10,0)
     (M.fromList
-     [ ("rts.gc.bytes_allocated"          , Counter . fromIntegral . Stats.allocated_bytes)
-     , ("rts.gc.num_gcs"                  , Counter . fromIntegral . Stats.gcs)
-     , ("rts.gc.num_bytes_usage_samples"  , Counter . fromIntegral . Stats.major_gcs)
-     , ("rts.gc.cumulative_bytes_used"    , Counter . fromIntegral . Stats.cumulative_live_bytes)
-     , ("rts.gc.bytes_copied"             , Counter . fromIntegral . Stats.copied_bytes)
-#if MIN_VERSION_base(4,12,0)
-     , ("rts.gc.init_cpu_ms"              , Counter . nsToMs . Stats.init_cpu_ns)
-     , ("rts.gc.init_wall_ms"             , Counter . nsToMs . Stats.init_elapsed_ns)
+     -- We order them the same way as they are in GHC.Stats for easy comparison.
+     [ ("rts.gcs"                                    , Counter . fromIntegral . Stats.gcs)
+     , ("rts.major_gcs"                              , Counter . fromIntegral . Stats.major_gcs)
+     , ("rts.allocated_bytes"                        , Counter . fromIntegral . Stats.allocated_bytes)
+     , ("rts.max_live_bytes"                         , Gauge . fromIntegral . Stats.max_live_bytes)
+     , ("rts.max_large_objects_bytes"                , Gauge . fromIntegral . Stats.max_large_objects_bytes)
+     , ("rts.max_compact_bytes"                      , Gauge . fromIntegral . Stats.max_compact_bytes)
+     , ("rts.max_slop_bytes"                         , Gauge . fromIntegral . Stats.max_slop_bytes)
+     , ("rts.max_mem_in_use_bytes"                   , Gauge . fromIntegral . Stats.max_mem_in_use_bytes)
+     , ("rts.cumulative_live_bytes"                  , Counter . fromIntegral . Stats.cumulative_live_bytes)
+     , ("rts.copied_bytes"                           , Counter . fromIntegral . Stats.copied_bytes)
+     , ("rts.par_copied_bytes"                       , Gauge . fromIntegral . Stats.par_copied_bytes)
+     , ("rts.cumulative_par_max_copied_bytes"        , Gauge . fromIntegral . Stats.cumulative_par_max_copied_bytes)
+#if MIN_VERSION_base(4,11,0)
+     , ("rts.cumulative_par_balanced_copied_bytes"   , Gauge . fromIntegral . Stats.cumulative_par_balanced_copied_bytes)
 #endif
-     , ("rts.gc.mutator_cpu_ms"           , Counter . nsToMs . Stats.mutator_cpu_ns)
-     , ("rts.gc.mutator_wall_ms"          , Counter . nsToMs . Stats.mutator_elapsed_ns)
-     , ("rts.gc.gc_cpu_ms"                , Counter . nsToMs . Stats.gc_cpu_ns)
-     , ("rts.gc.gc_wall_ms"               , Counter . nsToMs . Stats.gc_elapsed_ns)
-     , ("rts.gc.cpu_ms"                   , Counter . nsToMs . Stats.cpu_ns)
-     , ("rts.gc.wall_ms"                  , Counter . nsToMs . Stats.elapsed_ns)
-     , ("rts.gc.max_bytes_used"           , Gauge . fromIntegral . Stats.max_live_bytes)
-     , ("rts.gc.current_bytes_used"       , Gauge . fromIntegral . Stats.gcdetails_live_bytes . Stats.gc)
-     , ("rts.gc.current_bytes_slop"       , Gauge . fromIntegral . Stats.gcdetails_slop_bytes . Stats.gc)
-     , ("rts.gc.max_bytes_slop"           , Gauge . fromIntegral . Stats.max_slop_bytes)
-     , ("rts.gc.peak_megabytes_allocated" , Gauge . fromIntegral . (`quot` (1024*1024)) . Stats.max_mem_in_use_bytes)
-     , ("rts.gc.par_tot_bytes_copied"     , Gauge . fromIntegral . Stats.par_copied_bytes)
-     , ("rts.gc.par_avg_bytes_copied"     , Gauge . fromIntegral . Stats.par_copied_bytes)
-     , ("rts.gc.par_max_bytes_copied"     , Gauge . fromIntegral . Stats.cumulative_par_max_copied_bytes)
+#if MIN_VERSION_base(4,12,0)
+     , ("rts.init_cpu_ns"                            , Counter . Stats.init_cpu_ns)
+     , ("rts.init_elapsed_ns"                        , Counter . Stats.init_elapsed_ns)
+#endif
+     , ("rts.mutator_cpu_ns"                         , Counter . Stats.mutator_cpu_ns)
+     , ("rts.mutator_elapsed_ns"                     , Counter . Stats.mutator_elapsed_ns)
+     , ("rts.gc_cpu_ns"                              , Counter . Stats.gc_cpu_ns)
+     , ("rts.gc_elapsed_ns"                          , Counter . Stats.gc_elapsed_ns)
+     , ("rts.cpu_ns"                                 , Counter . Stats.cpu_ns)
+     , ("rts.elapsed_ns"                             , Counter . Stats.elapsed_ns)
+     -- GCDetails
+     , ("rts.gc.gen"                                 , Gauge . fromIntegral . Stats.gcdetails_gen . Stats.gc)
+     , ("rts.gc.threads"                             , Gauge . fromIntegral . Stats.gcdetails_threads . Stats.gc)
+     , ("rts.gc.allocated_bytes"                     , Gauge . fromIntegral . Stats.gcdetails_allocated_bytes . Stats.gc)
+     , ("rts.gc.live_bytes"                          , Gauge . fromIntegral . Stats.gcdetails_live_bytes . Stats.gc)
+     , ("rts.gc.large_objects_bytes"                 , Gauge . fromIntegral . Stats.gcdetails_large_objects_bytes . Stats.gc)
+     , ("rts.gc.compact_bytes"                       , Gauge . fromIntegral . Stats.gcdetails_compact_bytes . Stats.gc)
+     , ("rts.gc.slop_bytes"                          , Gauge . fromIntegral . Stats.gcdetails_slop_bytes . Stats.gc)
+     , ("rts.gc.mem_in_use_bytes"                    , Gauge . fromIntegral . Stats.gcdetails_mem_in_use_bytes . Stats.gc)
+     , ("rts.gc.copied_bytes"                        , Gauge . fromIntegral . Stats.gcdetails_copied_bytes . Stats.gc)
+     , ("rts.gc.par_max_copied_bytes"                , Gauge . fromIntegral . Stats.gcdetails_par_max_copied_bytes . Stats.gc)
+#if MIN_VERSION_base(4,11,0)
+     , ("rts.gc.gcdetails_par_balanced_copied_bytes" , Gauge . fromIntegral . Stats.gcdetails_par_balanced_copied_bytes . Stats.gc)
+#endif
+     , ("rts.gc.sync_elapsed_ns"                     , Gauge . fromIntegral . Stats.gcdetails_sync_elapsed_ns . Stats.gc)
+     , ("rts.gc.cpu_ns"                              , Gauge . fromIntegral . Stats.gcdetails_cpu_ns . Stats.gc)
+     , ("rts.gc.elapsed_ns"                          , Gauge . fromIntegral . Stats.gcdetails_elapsed_ns . Stats.gc)
      ])
     getRTSStats
 #else
+    -- For pre-base-4.10 we translate the names from before GHC commit
+    -- 24e6594cc7890babe69b8ba122d171affabad2d1 to their newer equivalents
+    -- so that ekg-core always presents the same names (given that e.g.
+    -- the ekg Javascript expects them to exist).
+    -- The mapping is obtained obtained from
+    --   https://hackage.haskell.org/package/base-4.10.0.0/docs/GHC-Stats.html
+    -- which has both the old and the new interface, as well as from
+    -- the commit diff implementation in `Stats.c`.
     (M.fromList
-     [ ("rts.gc.bytes_allocated"          , Counter . Stats.bytesAllocated)
-     , ("rts.gc.num_gcs"                  , Counter . Stats.numGcs)
-     , ("rts.gc.num_bytes_usage_samples"  , Counter . Stats.numByteUsageSamples)
-     , ("rts.gc.cumulative_bytes_used"    , Counter . Stats.cumulativeBytesUsed)
-     , ("rts.gc.bytes_copied"             , Counter . Stats.bytesCopied)
-     , ("rts.gc.mutator_cpu_ms"           , Counter . sToMs . Stats.mutatorCpuSeconds)
-     , ("rts.gc.mutator_wall_ms"          , Counter . sToMs . Stats.mutatorWallSeconds)
-     , ("rts.gc.gc_cpu_ms"                , Counter . sToMs . Stats.gcCpuSeconds)
-     , ("rts.gc.gc_wall_ms"               , Counter . sToMs . Stats.gcWallSeconds)
-     , ("rts.gc.cpu_ms"                   , Counter . sToMs . Stats.cpuSeconds)
-     , ("rts.gc.wall_ms"                  , Counter . sToMs . Stats.wallSeconds)
-     , ("rts.gc.max_bytes_used"           , Gauge . Stats.maxBytesUsed)
-     , ("rts.gc.current_bytes_used"       , Gauge . Stats.currentBytesUsed)
-     , ("rts.gc.current_bytes_slop"       , Gauge . Stats.currentBytesSlop)
-     , ("rts.gc.max_bytes_slop"           , Gauge . Stats.maxBytesSlop)
-     , ("rts.gc.peak_megabytes_allocated" , Gauge . Stats.peakMegabytesAllocated)
-     , ("rts.gc.par_tot_bytes_copied"     , Gauge . gcParTotBytesCopied)
-     , ("rts.gc.par_avg_bytes_copied"     , Gauge . gcParTotBytesCopied)
-     , ("rts.gc.par_max_bytes_copied"     , Gauge . Stats.parMaxBytesCopied)
+     [ ("rts.allocated_bytes"         , Counter . Stats.bytesAllocated)
+     , ("rts.gcs"                     , Counter . Stats.numGcs)
+     , ("rts.major_gcs"               , Counter . Stats.numByteUsageSamples)
+     , ("rts.cumulative_live_bytes"   , Counter . Stats.cumulativeBytesUsed)
+     , ("rts.copied_bytes"            , Counter . Stats.bytesCopied)
+     , ("rts.mutator_cpu_ns"          , Counter . sToNs . Stats.mutatorCpuSeconds)
+     , ("rts.mutator_elapsed_ns"      , Counter . sToNs . Stats.mutatorWallSeconds)
+     , ("rts.gc_cpu_ns"               , Counter . sToNs . Stats.gcCpuSeconds)
+     , ("rts.gc_elapsed_ns"           , Counter . sToNs . Stats.gcWallSeconds)
+     , ("rts.cpu_ns"                  , Counter . sToNs . Stats.cpuSeconds)
+     , ("rts.elapsed_ns"              , Counter . sToNs . Stats.wallSeconds)
+     , ("rts.max_live_bytes"          , Gauge . Stats.maxBytesUsed)
+     , ("rts.gc.live_bytes"           , Gauge . Stats.currentBytesUsed)
+     , ("rts.gc.slop_bytes"           , Gauge . Stats.currentBytesSlop)
+     , ("rts.max_slop_bytes"          , Gauge . Stats.maxBytesSlop)
+     , ("rts.max_mem_in_use_bytes"    , Gauge . Stats.peakMegabytesAllocated)
+     -- Note that historically, the values
+     --     par_tot_bytes_copied were both
+     --     par_avg_bytes_copied
+     -- were both taken from
+     --     gcParTotBytesCopied
+     -- after `parAvgBytesCopied` was renamed to `gcParTotBytesCopied`;
+     -- see `ekg` commit
+     --     27467a61 - parAvgBytesCopied was renamed in GHC 7.6.1
+     , ("rts.par_copied_bytes"        , Gauge . gcParTotBytesCopied)
+     , ("rts.gc.par_max_copied_bytes" , Gauge . Stats.parMaxBytesCopied)
      ])
     getGcStats
 #endif
