@@ -25,6 +25,7 @@ library
     System.Metrics.Distribution
     System.Metrics.Distribution.Internal
     System.Metrics.Gauge
+    System.Metrics.Heartbeat
     System.Metrics.Label
 
   other-modules:
@@ -37,6 +38,7 @@ library
     base >= 4.6 && < 4.16,
     containers >= 0.5 && < 0.7,
     text < 1.3,
+    time > 1.0 && < 2.0,
     unordered-containers < 0.3
 
   default-language:    Haskell2010
