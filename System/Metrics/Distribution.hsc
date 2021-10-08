@@ -91,13 +91,14 @@ instance Storable CDistrib where
 newCDistrib :: IO (ForeignPtr CDistrib)
 newCDistrib = do
     fp <- mallocForeignPtr
+    let infinity = 1/0
     withForeignPtr fp $ \ p -> poke p $ CDistrib
         { cCount      = 0
         , cMean       = 0.0
         , cSumSqDelta = 0.0
         , cSum        = 0.0
-        , cMin        = 0.0
-        , cMax        = 0.0
+        , cMin        = infinity
+        , cMax        = -infinity
         , cLock       = 0
         }
     return fp
