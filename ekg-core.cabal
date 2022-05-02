@@ -33,11 +33,11 @@ library
     System.Metrics.ThreadId
 
   build-depends:
-    ghc-prim < 0.8,
-    base >= 4.6 && < 4.16,
-    containers >= 0.5 && < 0.7,
-    text < 1.3,
-    unordered-containers < 0.3
+    ghc-prim < 0.9,
+    base >= 4.6 && < 5,
+    containers >= 0.5,
+    text,
+    unordered-containers
 
   default-language:    Haskell2010
 
