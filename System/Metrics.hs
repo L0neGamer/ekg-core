@@ -68,7 +68,9 @@ module System.Metrics
     , Value(..)
     ) where
 
+#if __GLASGOW_HASKELL__ < 808
 import Control.Applicative ((<$>))
+#endif
 import Control.Monad (forM)
 import Data.Int (Int64)
 import qualified Data.IntMap.Strict as IM
@@ -513,26 +515,41 @@ emptyRTSStats = Stats.RTSStats
     , cpu_ns                               = 0
     , elapsed_ns                           = 0
     , gc                                   = emptyGCDetails
+# if MIN_VERSION_base(4,14,0)
+    , nonmoving_gc_sync_cpu_ns             = 0
+    , nonmoving_gc_sync_elapsed_ns         = 0
+    , nonmoving_gc_sync_max_elapsed_ns     = 0
+    , nonmoving_gc_cpu_ns                  = 0
+    , nonmoving_gc_elapsed_ns              = 0
+    , nonmoving_gc_max_elapsed_ns          = 0
+# endif
     }
 
 emptyGCDetails :: Stats.GCDetails
 emptyGCDetails = Stats.GCDetails
-    { gcdetails_gen                       = 0
-    , gcdetails_threads                   = 0
-    , gcdetails_allocated_bytes           = 0
-    , gcdetails_live_bytes                = 0
-    , gcdetails_large_objects_bytes       = 0
-    , gcdetails_compact_bytes             = 0
-    , gcdetails_slop_bytes                = 0
-    , gcdetails_mem_in_use_bytes          = 0
-    , gcdetails_copied_bytes              = 0
-    , gcdetails_par_max_copied_bytes      = 0
+    { gcdetails_gen                          = 0
+    , gcdetails_threads                      = 0
+    , gcdetails_allocated_bytes              = 0
+    , gcdetails_live_bytes                   = 0
+    , gcdetails_large_objects_bytes          = 0
+    , gcdetails_compact_bytes                = 0
+    , gcdetails_slop_bytes                   = 0
+    , gcdetails_mem_in_use_bytes             = 0
+    , gcdetails_copied_bytes                 = 0
+    , gcdetails_par_max_copied_bytes         = 0
 # if MIN_VERSION_base(4,11,0)
-    , gcdetails_par_balanced_copied_bytes = 0
+    , gcdetails_par_balanced_copied_bytes    = 0
 # endif
-    , gcdetails_sync_elapsed_ns           = 0
-    , gcdetails_cpu_ns                    = 0
-    , gcdetails_elapsed_ns                = 0
+    , gcdetails_sync_elapsed_ns              = 0
+    , gcdetails_cpu_ns                       = 0
+    , gcdetails_elapsed_ns                   = 0
+# if MIN_VERSION_base(4,14,0)
+# if MIN_VERSION_base(4,18,0)
+    , gcdetails_block_fragmentation_bytes    = 0
+# endif
+    , gcdetails_nonmoving_gc_sync_cpu_ns     = 0
+    , gcdetails_nonmoving_gc_sync_elapsed_ns = 0
+# endif
     }
 #else
 -- | Get GC statistics.
