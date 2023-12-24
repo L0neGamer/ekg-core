@@ -25,10 +25,14 @@ import GHC.Prim
 
 #include "MachDeps.h"
 
-#if WORD_SIZE_IN_BYTES > 32
+#ifndef WORD_SIZE_IN_BITS
+#error "WORD_SIZE_IN_BITS not defined"
+#elif WORD_SIZE_IN_BITS == 32
+#define ARRLEN 4
+#elif WORD_SIZE_IN_BITS == 64
 #define ARRLEN 8
 #else
-#define ARRLEN 4
+#error "WORD_SIZE_IN_BITS not 32 or 64"
 #endif
 
 -- | A mutable, atomic integer.
