@@ -11,3 +11,5 @@ cabal.config
 cabal.sandbox.config
 examples/Group
 *.sublime-*
+cabal.project.local*
+dist-newstyle
